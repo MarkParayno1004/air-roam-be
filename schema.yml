@@ -1,0 +1,2959 @@
+openapi: 3.0.3
+info:
+  title: Air Roam API
+  version: 1.0.0
+paths:
+  /api/schema/:
+    get:
+      operationId: schema_retrieve
+      description: |-
+        OpenApi3 schema for this API. Format can be selected via content negotiation.
+
+        - YAML: application/vnd.oai.openapi
+        - JSON: application/vnd.oai.openapi+json
+      parameters:
+      - in: query
+        name: format
+        schema:
+          type: string
+          enum:
+          - json
+          - yaml
+      - in: query
+        name: lang
+        schema:
+          type: string
+          enum:
+          - af
+          - ar
+          - ar-dz
+          - ast
+          - az
+          - be
+          - bg
+          - bn
+          - br
+          - bs
+          - ca
+          - ckb
+          - cs
+          - cy
+          - da
+          - de
+          - dsb
+          - el
+          - en
+          - en-au
+          - en-gb
+          - eo
+          - es
+          - es-ar
+          - es-co
+          - es-mx
+          - es-ni
+          - es-ve
+          - et
+          - eu
+          - fa
+          - fi
+          - fr
+          - fy
+          - ga
+          - gd
+          - gl
+          - he
+          - hi
+          - hr
+          - hsb
+          - hu
+          - hy
+          - ia
+          - id
+          - ig
+          - io
+          - is
+          - it
+          - ja
+          - ka
+          - kab
+          - kk
+          - km
+          - kn
+          - ko
+          - ky
+          - lb
+          - lt
+          - lv
+          - mk
+          - ml
+          - mn
+          - mr
+          - ms
+          - my
+          - nb
+          - ne
+          - nl
+          - nn
+          - os
+          - pa
+          - pl
+          - pt
+          - pt-br
+          - ro
+          - ru
+          - sk
+          - sl
+          - sq
+          - sr
+          - sr-latn
+          - sv
+          - sw
+          - ta
+          - te
+          - tg
+          - th
+          - tk
+          - tr
+          - tt
+          - udm
+          - ug
+          - uk
+          - ur
+          - uz
+          - vi
+          - zh-hans
+          - zh-hant
+      tags:
+      - schema
+      security:
+      - jwtAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/vnd.oai.openapi:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/yaml:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/vnd.oai.openapi+json:
+              schema:
+                type: object
+                additionalProperties: {}
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/auth/csrf:
+    get:
+      operationId: v1_auth_csrf_retrieve
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+          description: ''
+  /api/v1/auth/login:
+    post:
+      operationId: v1_auth_login_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+  /api/v1/auth/logout:
+    post:
+      operationId: v1_auth_logout_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/refresh:
+    post:
+      operationId: v1_auth_refresh_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RefreshInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+          description: ''
+  /api/v1/auth/register:
+    post:
+      operationId: v1_auth_register_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Register'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Register'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Register'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/v1/auth/web/login:
+    post:
+      operationId: v1_auth_web_login_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/v1/auth/web/logout:
+    post:
+      operationId: v1_auth_web_logout_create
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/web/refresh:
+    post:
+      operationId: v1_auth_web_refresh_create
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+          description: ''
+  /api/v1/bookings:
+    get:
+      operationId: v1_bookings_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedBookingDetailList'
+          description: ''
+  /api/v1/bookings/{id}:
+    get:
+      operationId: v1_bookings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+          description: ''
+    patch:
+      operationId: v1_bookings_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedBookingInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedBookingInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedBookingInput'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+          description: ''
+  /api/v1/destinations:
+    get:
+      operationId: v1_destinations_list
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Destination'
+          description: ''
+  /api/v1/me:
+    get:
+      operationId: v1_me_retrieve
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '204':
+          description: No response body
+    patch:
+      operationId: v1_me_partial_update
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '204':
+          description: No response body
+    delete:
+      operationId: v1_me_destroy
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+        '204':
+          description: No response body
+  /api/v1/multi-country-packs:
+    get:
+      operationId: v1_multi_country_packs_list
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PackGroup'
+          description: ''
+  /api/v1/order-lines/{line_id}/booking:
+    post:
+      operationId: v1_order_lines_booking_create
+      parameters:
+      - in: path
+        name: line_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+          description: ''
+  /api/v1/orders:
+    get:
+      operationId: v1_orders_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrderList'
+          description: ''
+    post:
+      operationId: v1_orders_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Checkout'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Checkout'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Checkout'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutResponse'
+          description: ''
+  /api/v1/orders/{id}:
+    get:
+      operationId: v1_orders_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: ''
+  /api/v1/orders/{id}/cancel:
+    post:
+      operationId: v1_orders_cancel_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this order.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+          description: ''
+  /api/v1/products:
+    get:
+      operationId: v1_products_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProductList'
+          description: ''
+  /api/v1/products/{id}:
+    get:
+      operationId: v1_products_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+          description: ''
+  /api/v1/staff/auth/login:
+    post:
+      operationId: v1_staff_auth_login_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/v1/staff/auth/logout:
+    post:
+      operationId: v1_staff_auth_logout_create
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/staff/auth/refresh:
+    post:
+      operationId: v1_staff_auth_refresh_create
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessToken'
+          description: ''
+  /api/v1/staff/bookings:
+    get:
+      operationId: v1_staff_bookings_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffBookingList'
+          description: ''
+  /api/v1/staff/bookings/{id}:
+    get:
+      operationId: v1_staff_bookings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffBooking'
+          description: ''
+    patch:
+      operationId: v1_staff_bookings_partial_update
+      description: Admins may change any booking, including Pocket WiFi rental dates
+        (travelers can't).
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffBookingInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffBookingInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffBookingInput'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffBookingUpdateResponse'
+          description: ''
+  /api/v1/staff/orders:
+    get:
+      operationId: v1_staff_orders_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffOrderList'
+          description: ''
+  /api/v1/staff/orders/{id}:
+    get:
+      operationId: v1_staff_orders_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffOrder'
+          description: ''
+    patch:
+      operationId: v1_staff_orders_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStatusInput'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStatusInput'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStatusInput'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffOrder'
+          description: ''
+    delete:
+      operationId: v1_staff_orders_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/staff/products:
+    get:
+      operationId: v1_staff_products_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffProductList'
+          description: ''
+    post:
+      operationId: v1_staff_products_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProduct'
+          description: ''
+  /api/v1/staff/products/{id}:
+    get:
+      operationId: v1_staff_products_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this product.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProduct'
+          description: ''
+    put:
+      operationId: v1_staff_products_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this product.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProduct'
+          description: ''
+    patch:
+      operationId: v1_staff_products_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this product.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffProduct'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffProduct'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffProduct'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProduct'
+          description: ''
+    delete:
+      operationId: v1_staff_products_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this product.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/staff/products/{id}/thumbnail:
+    post:
+      operationId: v1_staff_products_thumbnail_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this product.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffProduct'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProduct'
+          description: ''
+  /api/v1/staff/products/{product_pk}/variants:
+    get:
+      operationId: v1_staff_products_variants_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffVariantList'
+          description: ''
+    post:
+      operationId: v1_staff_products_variants_create
+      parameters:
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffVariant'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffVariant'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffVariant'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffVariant'
+          description: ''
+  /api/v1/staff/products/{product_pk}/variants/{id}:
+    get:
+      operationId: v1_staff_products_variants_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffVariant'
+          description: ''
+    put:
+      operationId: v1_staff_products_variants_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffVariant'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffVariant'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffVariant'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffVariant'
+          description: ''
+    patch:
+      operationId: v1_staff_products_variants_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffVariant'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffVariant'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffVariant'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffVariant'
+          description: ''
+    delete:
+      operationId: v1_staff_products_variants_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: product_pk
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/staff/users:
+    get:
+      operationId: v1_staff_users_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffUserList'
+          description: ''
+    post:
+      operationId: v1_staff_users_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffUser'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+          description: ''
+  /api/v1/staff/users/{id}:
+    get:
+      operationId: v1_staff_users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+          description: ''
+    put:
+      operationId: v1_staff_users_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffUser'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+          description: ''
+    patch:
+      operationId: v1_staff_users_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUser'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUser'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffUser'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffUser'
+          description: ''
+    delete:
+      operationId: v1_staff_users_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this user.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+components:
+  schemas:
+    AccessToken:
+      type: object
+      properties:
+        access:
+          type: string
+      required:
+      - access
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+          readOnly: true
+        start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        booking_status:
+          allOf:
+          - $ref: '#/components/schemas/BookingStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - booking_status
+      - created_at
+      - destination_country_codes
+      - end_at
+      - id
+      - start_at
+      - updated_at
+    BookingDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+          readOnly: true
+        start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        booking_status:
+          allOf:
+          - $ref: '#/components/schemas/BookingStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        order_id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_line_id:
+          type: string
+          format: uuid
+          readOnly: true
+        variant_name:
+          type: string
+          readOnly: true
+        product_type:
+          type: string
+          readOnly: true
+        pricing_unit:
+          type: string
+          readOnly: true
+        countries:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - booking_status
+      - countries
+      - created_at
+      - destination_country_codes
+      - end_at
+      - id
+      - order_id
+      - order_line_id
+      - pricing_unit
+      - product_type
+      - start_at
+      - updated_at
+      - variant_name
+    BookingInput:
+      type: object
+      properties:
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+      required:
+      - end_at
+      - start_at
+    BookingStatusEnum:
+      enum:
+      - pending
+      - confirmed
+      - active
+      - completed
+      - cancelled
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `confirmed` - Confirmed
+        * `active` - Active
+        * `completed` - Completed
+        * `cancelled` - Cancelled
+    Checkout:
+      type: object
+      properties:
+        client:
+          allOf:
+          - $ref: '#/components/schemas/ClientEnum'
+          default: web
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckoutLine'
+      required:
+      - lines
+    CheckoutLine:
+      type: object
+      properties:
+        variant_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          maximum: 10
+          minimum: 1
+        expected_unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+      required:
+      - expected_unit_price
+      - quantity
+      - variant_id
+    CheckoutResponse:
+      type: object
+      properties:
+        order:
+          $ref: '#/components/schemas/Order'
+        invoice_url:
+          type: string
+          format: uri
+        price_updates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceUpdate'
+        removed_lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/RemovedLine'
+      required:
+      - invoice_url
+      - order
+      - price_updates
+      - removed_lines
+    ClientEnum:
+      enum:
+      - web
+      - app
+      type: string
+      description: |-
+        * `web` - Web
+        * `app` - App
+    CsrfToken:
+      type: object
+      properties:
+        csrfToken:
+          type: string
+      required:
+      - csrfToken
+    Destination:
+      type: object
+      properties:
+        country_code:
+          type: string
+        country_name:
+          type: string
+        slug:
+          type: string
+        region:
+          type: string
+        from_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        multi_country_pack_count:
+          type: integer
+      required:
+      - country_code
+      - country_name
+      - from_price
+      - multi_country_pack_count
+      - region
+      - slug
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+      - email
+      - password
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_status:
+          allOf:
+          - $ref: '#/components/schemas/OrderStatusEnum'
+          readOnly: true
+        client:
+          allOf:
+          - $ref: '#/components/schemas/ClientEnum'
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        xendit_invoice_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+        paid_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'
+          readOnly: true
+      required:
+      - client
+      - created_at
+      - currency
+      - id
+      - lines
+      - order_status
+      - paid_at
+      - total_amount
+      - updated_at
+      - xendit_invoice_url
+    OrderCustomer:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        contact_no:
+          type: string
+      required:
+      - contact_no
+      - email
+      - first_name
+      - id
+      - last_name
+    OrderLine:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_variant:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name_snapshot:
+          type: string
+          readOnly: true
+        variant_name_snapshot:
+          type: string
+          readOnly: true
+        product_type_snapshot:
+          type: string
+          readOnly: true
+        pricing_unit_snapshot:
+          type: string
+          readOnly: true
+        countries_snapshot:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+          readOnly: true
+        quantity:
+          type: integer
+          readOnly: true
+        unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        rental_days:
+          type: integer
+          readOnly: true
+          nullable: true
+        line_total:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        booking:
+          allOf:
+          - $ref: '#/components/schemas/Booking'
+          nullable: true
+          readOnly: true
+      required:
+      - booking
+      - countries_snapshot
+      - id
+      - line_total
+      - pricing_unit_snapshot
+      - product_name_snapshot
+      - product_type_snapshot
+      - product_variant
+      - quantity
+      - rental_days
+      - unit_price
+      - variant_name_snapshot
+    OrderStatusEnum:
+      enum:
+      - pending_payment
+      - paid
+      - fulfilled
+      - cancelled
+      - expired
+      - refunded
+      type: string
+      description: |-
+        * `pending_payment` - Pending Payment
+        * `paid` - Paid
+        * `fulfilled` - Fulfilled
+        * `cancelled` - Cancelled
+        * `expired` - Expired
+        * `refunded` - Refunded
+    Pack:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        countries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PackCountry'
+          readOnly: true
+        scope:
+          type: string
+          readOnly: true
+        region:
+          $ref: '#/components/schemas/RegionEnum'
+        tag:
+          type: string
+          nullable: true
+          maxLength: 50
+        is_featured:
+          type: boolean
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        pricing_unit:
+          $ref: '#/components/schemas/PricingUnitEnum'
+        product_type:
+          type: string
+        product_name:
+          type: string
+      required:
+      - countries
+      - id
+      - name
+      - price
+      - product_name
+      - product_type
+      - region
+      - scope
+    PackCountry:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+      required:
+      - code
+      - name
+    PackGroup:
+      type: object
+      properties:
+        region:
+          type: string
+        packs:
+          type: array
+          items:
+            $ref: '#/components/schemas/Pack'
+      required:
+      - packs
+      - region
+    PaginatedBookingDetailList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookingDetail'
+    PaginatedOrderList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+    PaginatedProductList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    PaginatedStaffBookingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffBooking'
+    PaginatedStaffOrderList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffOrder'
+    PaginatedStaffProductList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffProduct'
+    PaginatedStaffUserList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffUser'
+    PaginatedStaffVariantList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffVariant'
+    PatchedBookingInput:
+      type: object
+      properties:
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+    PatchedStaffBookingInput:
+      type: object
+      properties:
+        start_at:
+          type: string
+          format: date-time
+        end_at:
+          type: string
+          format: date-time
+        booking_status:
+          $ref: '#/components/schemas/BookingStatusEnum'
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+    PatchedStaffProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          maxLength: 200
+        product_type:
+          $ref: '#/components/schemas/ProductTypeEnum'
+        product_thumbnail_img:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+        product_description:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffVariant'
+          readOnly: true
+    PatchedStaffUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        contact_no:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        pin_point_lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_label:
+          type: string
+          nullable: true
+          maxLength: 255
+        effective_address:
+          type: string
+          readOnly: true
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+        password:
+          type: string
+          writeOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedStaffVariant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        countries:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+        scope:
+          type: string
+          readOnly: true
+        region:
+          $ref: '#/components/schemas/RegionEnum'
+        tag:
+          type: string
+          nullable: true
+          maxLength: 50
+        is_featured:
+          type: boolean
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        pricing_unit:
+          $ref: '#/components/schemas/PricingUnitEnum'
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedStatusInput:
+      type: object
+      properties:
+        order_status:
+          $ref: '#/components/schemas/OrderStatusEnum'
+    PatchedUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          readOnly: true
+        contact_no:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        pin_point_lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_label:
+          type: string
+          nullable: true
+          maxLength: 255
+        effective_address:
+          type: string
+          readOnly: true
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+          readOnly: true
+    PermissionsEnum:
+      enum:
+      - admin
+      - marketing
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `marketing` - Marketing
+    PriceUpdate:
+      type: object
+      properties:
+        variant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        old_unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        new_unit_price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - name
+      - new_unit_price
+      - old_unit_price
+      - variant_id
+    PricingUnitEnum:
+      enum:
+      - per_plan
+      - per_day
+      type: string
+      description: |-
+        * `per_plan` - Per plan
+        * `per_day` - Per day
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          maxLength: 200
+        product_type:
+          $ref: '#/components/schemas/ProductTypeEnum'
+        product_thumbnail_img:
+          type: string
+          format: uri
+          nullable: true
+        product_description:
+          type: string
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Variant'
+      required:
+      - id
+      - product_name
+      - product_type
+      - variants
+    ProductTypeEnum:
+      enum:
+      - sim
+      - esim
+      - pocket_wifi
+      type: string
+      description: |-
+        * `sim` - SIM
+        * `esim` - eSIM
+        * `pocket_wifi` - Pocket WiFi
+    RefreshInput:
+      type: object
+      properties:
+        refresh:
+          type: string
+      required:
+      - refresh
+    RegionEnum:
+      enum:
+      - asia
+      - europe
+      - north_america
+      - south_america
+      - africa
+      - oceania
+      - middle_east
+      - local_ph
+      - global
+      type: string
+      description: |-
+        * `asia` - Asia
+        * `europe` - Europe
+        * `north_america` - North America
+        * `south_america` - South America
+        * `africa` - Africa
+        * `oceania` - Oceania
+        * `middle_east` - Middle East
+        * `local_ph` - Local PH
+        * `global` - Global
+    Register:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        contact_no:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - first_name
+      - last_name
+      - password
+    RemovedLine:
+      type: object
+      properties:
+        variant_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - name
+      - variant_id
+    Session:
+      type: object
+      properties:
+        access:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+      - access
+      - user
+    StaffBooking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+          readOnly: true
+        start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        booking_status:
+          allOf:
+          - $ref: '#/components/schemas/BookingStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        order_id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_line_id:
+          type: string
+          format: uuid
+          readOnly: true
+        variant_name:
+          type: string
+          readOnly: true
+        product_type:
+          type: string
+          readOnly: true
+        pricing_unit:
+          type: string
+          readOnly: true
+        countries:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        customer_email:
+          type: string
+          format: email
+          readOnly: true
+        rental_days:
+          type: integer
+          readOnly: true
+      required:
+      - booking_status
+      - countries
+      - created_at
+      - customer_email
+      - destination_country_codes
+      - end_at
+      - id
+      - order_id
+      - order_line_id
+      - pricing_unit
+      - product_type
+      - rental_days
+      - start_at
+      - updated_at
+      - variant_name
+    StaffBookingUpdateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        destination_country_codes:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+          readOnly: true
+        start_at:
+          type: string
+          format: date-time
+          readOnly: true
+        end_at:
+          type: string
+          format: date-time
+          readOnly: true
+        booking_status:
+          allOf:
+          - $ref: '#/components/schemas/BookingStatusEnum'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        order_id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_line_id:
+          type: string
+          format: uuid
+          readOnly: true
+        variant_name:
+          type: string
+          readOnly: true
+        product_type:
+          type: string
+          readOnly: true
+        pricing_unit:
+          type: string
+          readOnly: true
+        countries:
+          type: array
+          items:
+            type: string
+          readOnly: true
+        customer_email:
+          type: string
+          format: email
+          readOnly: true
+        rental_days:
+          type: integer
+          readOnly: true
+        rental_days_changed:
+          type: boolean
+      required:
+      - booking_status
+      - countries
+      - created_at
+      - customer_email
+      - destination_country_codes
+      - end_at
+      - id
+      - order_id
+      - order_line_id
+      - pricing_unit
+      - product_type
+      - rental_days
+      - rental_days_changed
+      - start_at
+      - updated_at
+      - variant_name
+    StaffOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        order_status:
+          allOf:
+          - $ref: '#/components/schemas/OrderStatusEnum'
+          readOnly: true
+        client:
+          allOf:
+          - $ref: '#/components/schemas/ClientEnum'
+          readOnly: true
+        currency:
+          type: string
+          readOnly: true
+        total_amount:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        xendit_invoice_url:
+          type: string
+          format: uri
+          readOnly: true
+          nullable: true
+        paid_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLine'
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/OrderCustomer'
+          readOnly: true
+        xendit_invoice_id:
+          type: string
+          nullable: true
+          maxLength: 100
+        needs_attention:
+          type: boolean
+        attention_note:
+          type: string
+      required:
+      - client
+      - created_at
+      - currency
+      - id
+      - lines
+      - order_status
+      - paid_at
+      - total_amount
+      - updated_at
+      - user
+      - xendit_invoice_url
+    StaffProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        product_name:
+          type: string
+          maxLength: 200
+        product_type:
+          $ref: '#/components/schemas/ProductTypeEnum'
+        product_thumbnail_img:
+          type: string
+          format: uri
+          nullable: true
+          readOnly: true
+        product_description:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        variants:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffVariant'
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - product_name
+      - product_thumbnail_img
+      - product_type
+      - updated_at
+      - variants
+    StaffUser:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        contact_no:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        pin_point_lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_label:
+          type: string
+          nullable: true
+          maxLength: 255
+        effective_address:
+          type: string
+          readOnly: true
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+        password:
+          type: string
+          writeOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - effective_address
+      - email
+      - id
+    StaffVariant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        countries:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+        scope:
+          type: string
+          readOnly: true
+        region:
+          $ref: '#/components/schemas/RegionEnum'
+        tag:
+          type: string
+          nullable: true
+          maxLength: 50
+        is_featured:
+          type: boolean
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        pricing_unit:
+          $ref: '#/components/schemas/PricingUnitEnum'
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - countries
+      - created_at
+      - id
+      - name
+      - price
+      - region
+      - scope
+      - updated_at
+    TokenPair:
+      type: object
+      properties:
+        access:
+          type: string
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          readOnly: true
+        contact_no:
+          type: string
+          maxLength: 30
+        address:
+          type: string
+        pin_point_lat:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_lng:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,6})?$
+          nullable: true
+        pin_point_label:
+          type: string
+          nullable: true
+          maxLength: 255
+        effective_address:
+          type: string
+          readOnly: true
+        permissions:
+          type: array
+          items:
+            $ref: '#/components/schemas/PermissionsEnum'
+          readOnly: true
+      required:
+      - effective_address
+      - email
+      - id
+      - permissions
+    Variant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 200
+        countries:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+        scope:
+          type: string
+          readOnly: true
+        region:
+          $ref: '#/components/schemas/RegionEnum'
+        tag:
+          type: string
+          nullable: true
+          maxLength: 50
+        is_featured:
+          type: boolean
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          nullable: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        pricing_unit:
+          $ref: '#/components/schemas/PricingUnitEnum'
+      required:
+      - countries
+      - id
+      - name
+      - price
+      - region
+      - scope
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
