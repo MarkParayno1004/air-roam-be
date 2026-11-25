@@ -86,7 +86,7 @@ class RegionPlan(SoftDeleteModel):
 
     @property
     def label(self) -> str:
-        data = f"{round(self.data_mb / 1024, 1):g}GB" if self.data_mb else "Unlimited"
+        data = f"{round(self.data_mb / 1024, 2):g}GB" if self.data_mb else "Unlimited"
         return f"{data} · {self.validity_days} day{'' if self.validity_days == 1 else 's'}"
 
     def __str__(self):

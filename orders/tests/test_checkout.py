@@ -90,7 +90,7 @@ def test_quantity_does_not_multiply_days(auth_api, world):
 def test_wifi_creates_a_pending_booking(auth_api, world):
     ln = ok(auth_api, world.wifi("jp", days=6))["order"]["lines"][0]
     assert ln["rental_days"] == 6 and ln["line_total"] == "600.00" and ln["region_plan"] is None
-    assert ln["variant_name_snapshot"] == "Japan Pocket WiFi" and ln["pricing_unit_snapshot"] == "per_day"
+    assert ln["variant_name_snapshot"] == "Japan" and ln["product_name_snapshot"] == "Air Roam pocket_wifi" and ln["pricing_unit_snapshot"] == "per_day"
     assert ln["booking"]["booking_status"] == "pending" and ln["booking"]["destination_country_codes"] == ["JP"]
 
 
@@ -113,15 +113,15 @@ def test_removed_line_does_not_set_the_rate_or_days(auth_api, world):
     world.asia.is_active = False
     world.asia.save()
     body = ok(auth_api, world.wifi("JP", 10), world.wifi("US", 2))
-    assert body["removed_lines"] == [{"name": "Japan Pocket WiFi"}]
-    assert body["price_updates"] == [{"name": "United States of America Pocket WiFi", "old_unit_price": "100.00", "new_unit_price": "50.00"}]
+    assert body["removed_lines"] == [{"name": "Air Roam pocket_wifi · Japan"}]
+    assert body["price_updates"] == [{"name": "Air Roam pocket_wifi · United States of America", "old_unit_price": "100.00", "new_unit_price": "50.00"}]
     assert (body["order"]["delivery_fee"], body["order"]["total_amount"]) == ("200.00", "300.00")
 
 
 def test_country_without_wifi_rate_removed(auth_api, world):
     world.na.pocket_wifi_daily_rate = None
     world.na.save()
-    assert ok(auth_api, world.wifi("JP"), world.wifi("US"))["removed_lines"][0]["name"].endswith("Pocket WiFi")
+    assert ok(auth_api, world.wifi("JP"), world.wifi("US"))["removed_lines"] == [{"name": "Air Roam pocket_wifi · United States of America"}]
 
 
 def test_plan_from_region_not_covering_country_removed(auth_api, world):
@@ -140,7 +140,7 @@ def test_unavailable_plan_region_or_product_removed(auth_api, world, target, how
         obj.is_active = False
         obj.save()
     body = ok(auth_api, world.esim(), world.wifi("US", expected="50.00"))
-    assert body["removed_lines"] == [{"name": "Japan 5GB · 7 days"}] and len(body["order"]["lines"]) == 1
+    assert body["removed_lines"] == [{"name": "Air Roam esim · Japan 5GB · 7 days"}] and len(body["order"]["lines"]) == 1
 
 
 def test_unknown_product_plan_or_country_removed(auth_api, world):
@@ -165,7 +165,7 @@ def test_wifi_ignores_a_plan_id(auth_api, world):
 
 def test_changed_plan_price_is_reported(auth_api, world):
     body = ok(auth_api, world.esim(expected="349.00"))
-    assert body["price_updates"] == [{"name": "Japan 5GB · 7 days", "old_unit_price": "349.00", "new_unit_price": "399.00"}]
+    assert body["price_updates"] == [{"name": "Air Roam esim · Japan 5GB · 7 days", "old_unit_price": "349.00", "new_unit_price": "399.00"}]
     assert body["order"]["total_amount"] == "399.00"
 
 

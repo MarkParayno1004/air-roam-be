@@ -5,7 +5,7 @@ from catalog.models import overlapping_region, region_for_country
 pytestmark = pytest.mark.django_db
 
 
-@pytest.mark.parametrize("mb,days,label", [(5120, 7, "5GB · 7 days"), (None, 30, "Unlimited · 30 days"), (512, 1, "0.5GB · 1 day")])
+@pytest.mark.parametrize("mb,days,label", [(5120, 7, "5GB · 7 days"), (None, 30, "Unlimited · 30 days"), (512, 1, "0.5GB · 1 day"), (1280, 7, "1.25GB · 7 days"), (40, 7, "0.04GB · 7 days")])
 def test_plan_label(plan_factory, mb, days, label):
     assert plan_factory(data_mb=mb, validity_days=days).label == label
 

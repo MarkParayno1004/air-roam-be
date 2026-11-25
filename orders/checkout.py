@@ -25,12 +25,17 @@ def _money(d):
 
 
 def _line_name(product, code, plan):
+    """Country plus plan; the product's own name is stored and shown next to it."""
     country = country_name(code)
     if not product or not country:
         return ""
     if product.product_type == ProductType.POCKET_WIFI:
-        return f"{country} {ProductType.POCKET_WIFI.label}"
+        return country
     return f"{country} {plan.label}" if plan else ""
+
+
+def _notice_name(product, line_name):
+    return f"{product.product_name} · {line_name}" if line_name else ""
 
 
 def _current_price(product, code, plan):
@@ -62,7 +67,7 @@ def create_order(user, client, lines):
         plan = None if wifi else plans.get(l.get("region_plan_id"))
         name, price = _line_name(product, code, plan), _current_price(product, code, plan)
         if price is None:
-            removed.append({"name": name})
+            removed.append({"name": _notice_name(product, name)})
             continue
         days = check_dates(l.get("start_at"), l.get("end_at")) if wifi else None
         kept.append((l, product, code, plan, name, price, days))
@@ -79,7 +84,7 @@ def create_order(user, client, lines):
     for l, product, code, plan, name, price, days in kept:
         unit_price = daily_rate if days else price
         if unit_price != l["expected_unit_price"]:
-            updates.append({"name": name, "old_unit_price": _money(l["expected_unit_price"]), "new_unit_price": _money(unit_price)})
+            updates.append({"name": _notice_name(product, name), "old_unit_price": _money(l["expected_unit_price"]), "new_unit_price": _money(unit_price)})
         line_total = unit_price * l["quantity"] * (days or 1)
         ol = OrderLine.objects.create(
             order=order,
