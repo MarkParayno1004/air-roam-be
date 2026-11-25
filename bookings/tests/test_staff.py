@@ -21,7 +21,7 @@ def wifi_booking(order_factory):
 
 def test_marketing_reads_but_cannot_edit(marketing_api, wifi_booking):
     r = marketing_api.get(S)
-    assert r.status_code == 200 and r.json()["results"][0]["variant_name"] == "Japan Pocket WiFi"
+    assert r.status_code == 200 and (r.json()["results"][0]["product_name"], r.json()["results"][0]["variant_name"]) == ("Air Roam pocket_wifi", "Japan Unlimited")
     assert marketing_api.patch(f"{S}/{wifi_booking.id}", {"booking_status": "active"}, format="json").status_code == 403
 
 

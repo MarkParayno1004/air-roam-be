@@ -18,7 +18,7 @@ class OrderLineSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderLine
         fields = [
-            "id", "product_variant", "product_name_snapshot", "variant_name_snapshot", "product_type_snapshot",
+            "id", "product", "region_plan", "product_name_snapshot", "variant_name_snapshot", "product_type_snapshot",
             "pricing_unit_snapshot", "countries_snapshot", "quantity", "unit_price", "rental_days", "line_total", "booking",
         ]
         read_only_fields = fields
@@ -34,19 +34,17 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ["id", "order_status", "client", "currency", "total_amount", "xendit_invoice_url", "paid_at", "created_at", "updated_at", "lines"]
+        fields = ["id", "order_status", "client", "currency", "delivery_fee", "total_amount", "payment_url", "paid_at", "created_at", "updated_at", "lines"]
         read_only_fields = fields
 
 
 class PriceUpdateSerializer(serializers.Serializer):
-    variant_id = serializers.UUIDField()
     name = serializers.CharField()
     old_unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
     new_unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
 
 
 class RemovedLineSerializer(serializers.Serializer):
-    variant_id = serializers.UUIDField()
     name = serializers.CharField(allow_blank=True)
 
 
@@ -58,12 +56,13 @@ class CheckoutResponseSerializer(serializers.Serializer):
 
 
 class CheckoutLineSerializer(serializers.Serializer):
-    variant_id = serializers.UUIDField()
+    product_id = serializers.UUIDField()
+    country_code = serializers.CharField(min_length=2, max_length=2, required=False)  # SIM/eSIM only: omitted = whole region
+    region_plan_id = serializers.UUIDField(required=False, allow_null=True)  # missing = plan_required
     quantity = serializers.IntegerField(min_value=1, max_value=10)
     expected_unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
     start_at = serializers.DateTimeField(required=False)
     end_at = serializers.DateTimeField(required=False)
-    destination_country_codes = serializers.ListField(child=serializers.CharField(max_length=2), required=False)
 
 
 class CheckoutSerializer(serializers.Serializer):

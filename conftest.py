@@ -1,4 +1,9 @@
+import hashlib
+import hmac
+import json
+
 import pytest
+import requests
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
@@ -10,6 +15,74 @@ def _clear_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+class FakePayMongo:
+    """Stands in for `requests` inside payments.paymongo: keeps sessions, records calls, fails on demand."""
+
+    def __init__(self):
+        self.sessions, self.calls, self.down, self.fail = {}, [], False, {}
+
+    def _answer(self, method, url, body, auth, timeout):
+        self.calls.append({"method": method, "url": url, "json": body, "auth": auth, "timeout": timeout})
+        path = url.removeprefix("https://api.paymongo.com/v1/checkout_sessions")
+        assert path != url, f"unexpected URL {url}"
+        if self.down:
+            raise requests.ConnectionError("down")
+        _, sid, *action = path.split("/") if path else ("", f"cs_{len(self.sessions) + 1}")
+        resp = requests.Response()
+        resp.status_code = self.fail.get(sid, 200)
+        if resp.status_code == 200:
+            if not path:
+                attrs = {"checkout_url": f"https://checkout.paymongo.com/{sid}", "status": "active", "payments": [], **body["data"]["attributes"]}
+                self.sessions[sid] = {"id": sid, "attributes": attrs}
+            elif action == ["expire"]:
+                if self.sessions[sid]["attributes"]["status"] == "active":
+                    self.sessions[sid]["attributes"]["status"] = "expired"
+                else:
+                    resp.status_code = 400
+            resp._content = json.dumps({"data": self.sessions[sid]}).encode()
+        return resp
+
+    def post(self, url, json=None, auth=None, timeout=None):
+        return self._answer("POST", url, json, auth, timeout)
+
+    def get(self, url, auth=None, timeout=None):
+        return self._answer("GET", url, None, auth, timeout)
+
+    def checkout(self, order):
+        from payments import paymongo
+
+        paymongo.create_checkout(order)
+        return order.payment_session_id
+
+    def pay(self, order, centavos=None, status="paid"):
+        amount = int(order.total_amount * 100) if centavos is None else centavos
+        self.sessions[order.payment_session_id]["attributes"]["payments"].append({"attributes": {"status": status, "amount": amount}})
+
+    def hook(self, api, session_id, type="checkout_session.payment.paid", **sign):
+        """Deliver a signed event whose body claims the session is paid."""
+        paid = [{"attributes": {"status": "paid", "amount": 79900}}]
+        body = json.dumps({"data": {"attributes": {"type": type, "livemode": False, "data": {"id": session_id, "attributes": {"payments": paid}}}}})
+        return self.send(api, body, **sign)
+
+    def send(self, api, body, secret="whsk_test", mode="te"):
+        sig = hmac.new(secret.encode(), f"1700000000.{body}".encode(), hashlib.sha256).hexdigest()
+        header = "t=1700000000," + (f"te={sig},li=" if mode == "te" else f"te=,li={sig}")
+        return api.post("/api/v1/payments/paymongo/webhook", body, content_type="application/json", HTTP_PAYMONGO_SIGNATURE=header)
+
+
+@pytest.fixture(autouse=True)
+def pay_api(settings, monkeypatch):
+    """Autouse: no test can reach the real PayMongo."""
+    from payments import paymongo
+
+    settings.PAYMONGO_SECRET_KEY = "sk_test_abc"
+    settings.PAYMONGO_WEBHOOK_SECRET = "whsk_test"
+    settings.PAYMONGO_METHODS = ["gcash", "paymaya", "qrph", "card"]
+    fake = FakePayMongo()
+    monkeypatch.setattr(paymongo, "requests", fake)
+    return fake
 
 
 @pytest.fixture
@@ -49,39 +122,69 @@ def marketing_user(db):
 
 
 @pytest.fixture
-def variant_factory(db):
-    from decimal import Decimal
+def region_factory(db):
+    from catalog.models import Region
 
-    from catalog.models import Product, ProductVariant
-
-    def make(product=None, product_type="esim", product_active=True, **fields):
-        if product is None:
-            product = Product.objects.create(product_name=fields.pop("product_name", "Air Roam eSIM"), product_type=product_type, is_active=product_active)
-        defaults = dict(name="Japan 10GB 7 days", countries=["JP"], region="asia", price=Decimal("799.00"), pricing_unit="per_plan", validity_days=7)
-        defaults.update(fields)
-        return ProductVariant.objects.create(product=product, **defaults)
+    def make(**fields):
+        return Region.objects.create(**{"name": "Asia 1", "countries": ["JP"], **fields})
 
     return make
 
 
 @pytest.fixture
-def order_factory(variant_factory, user):
-    """Order created through checkout (no Xendit call). kind: 'esim' | 'wifi'."""
+def plan_factory(region_factory):
+    from decimal import Decimal
+
+    from catalog.models import RegionPlan
+
+    def make(region=None, **fields):
+        return RegionPlan.objects.create(region=region or region_factory(), **{"data_mb": 5120, "validity_days": 7, "price": Decimal("399.00"), **fields})
+
+    return make
+
+
+@pytest.fixture
+def wifi_plan_factory(plan_factory):
+    from decimal import Decimal
+
+    def make(region=None, **fields):
+        return plan_factory(region, **{"for_wifi": True, "name": "Unlimited", "data_mb": None, "validity_days": None, "price": Decimal("100.00"), **fields})
+
+    return make
+
+
+@pytest.fixture
+def product_factory(db):
+    from catalog.models import Product
+
+    def make(product_type="esim", **fields):
+        return Product.objects.create(**{"product_name": f"Air Roam {product_type}", "product_type": product_type, **fields})
+
+    return make
+
+
+@pytest.fixture
+def order_factory(product_factory, region_factory, plan_factory, wifi_plan_factory, user):
+    """Japan order created through checkout (no PayMongo call). kind: 'esim' (799) | 'wifi' (350/day)."""
     from datetime import timedelta
     from decimal import Decimal
 
     from django.utils import timezone
 
+    from catalog.models import active_regions
     from orders.checkout import create_order
 
     def make(kind="esim", owner=None, client="web", start_in_days=3, nights=6):
+        region = active_regions().filter(countries__contains=["JP"]).first() or region_factory()
+        line = {"country_code": "JP", "quantity": 1}
         if kind == "wifi":
-            v = variant_factory(product_type="pocket_wifi", name="Japan Pocket WiFi", price=Decimal("350.00"), pricing_unit="per_day", validity_days=None)
             start = timezone.now() + timedelta(days=start_in_days)
-            line = {"variant_id": v.id, "quantity": 1, "expected_unit_price": v.price, "start_at": start, "end_at": start + timedelta(days=nights)}
+            plan = wifi_plan_factory(region=region, price=Decimal("350.00"))
+            line |= {"product_id": product_factory("pocket_wifi").id, "start_at": start, "end_at": start + timedelta(days=nights)}
         else:
-            v = variant_factory()
-            line = {"variant_id": v.id, "quantity": 1, "expected_unit_price": v.price}
+            plan = plan_factory(region=region, price=Decimal("799.00"))
+            line |= {"product_id": product_factory("esim").id}
+        line |= {"region_plan_id": plan.id, "expected_unit_price": plan.price}
         return create_order(owner or user, client, [line]).order
 
     return make

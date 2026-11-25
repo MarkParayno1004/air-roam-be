@@ -1,19 +1,26 @@
+import logging
+
+from django.db import transaction
 from django.db.models import Q
 from drf_spectacular.utils import extend_schema, extend_schema_field, inline_serializer
 from rest_framework import mixins, serializers, status, viewsets
 from rest_framework.response import Response
 
 from accounts.permissions import AdminWriteOtherwiseStaffRead
+from common.errors import DomainError
 from orders.models import Order, OrderStatus
 from orders.serializers import OrderSerializer
 from orders.status import transition
+from payments import paymongo
+
+log = logging.getLogger(__name__)
 
 
 class StaffOrderSerializer(OrderSerializer):
     user = serializers.SerializerMethodField()
 
     class Meta(OrderSerializer.Meta):
-        fields = OrderSerializer.Meta.fields + ["user", "xendit_invoice_id", "needs_attention", "attention_note"]
+        fields = OrderSerializer.Meta.fields + ["user", "payment_session_id", "needs_attention", "attention_note"]
 
     @extend_schema_field(
         inline_serializer("OrderCustomer", {k: serializers.CharField() for k in ("id", "email", "first_name", "last_name", "contact_no")})
@@ -54,10 +61,23 @@ class StaffOrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewse
         order = self.get_object()
         s = StatusInput(data=request.data)
         s.is_valid(raise_exception=True)
-        transition(order, s.validated_data["order_status"])
-        order.save(update_fields=["order_status", "paid_at", "updated_at"])
+        was_pending = order.order_status == "pending_payment"
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=pk)  # serialize against a concurrent paid webhook
+            if was_pending and order.order_status != "pending_payment":
+                raise DomainError("invalid_transition", f"This order just became {order.order_status}. Reload it and try again.", status=409)
+            transition(order, s.validated_data["order_status"])
+            order.save(update_fields=["order_status", "paid_at", "updated_at"])
+        if was_pending:
+            try:
+                paymongo.expire_checkout(order)  # so the session can't be paid any more
+            except Exception:
+                log.exception("could not expire paymongo session for order %s, now %s", order.id, order.order_status)
         return Response(self.get_serializer(order).data)
 
     def destroy(self, request, pk=None):
-        self.get_object().soft_delete()
+        order = self.get_object()
+        if order.order_status == "pending_payment":  # it can still be paid
+            raise DomainError("invalid_transition", "Cancel the order first.", status=409)
+        order.soft_delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

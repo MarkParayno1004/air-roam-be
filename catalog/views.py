@@ -1,4 +1,4 @@
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch
 from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
@@ -7,34 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog import cache
-from catalog.models import Product, ProductVariant, Region, country_name
-from catalog.serializers import DestinationSerializer, PackGroupSerializer, PackSerializer, ProductSerializer
-
-
-def sellable_variants():
-    return ProductVariant.objects.filter(
-        is_active=True, product__is_active=True, product__deleted_at__isnull=True
-    ).select_related("product")
-
-
-def filtered_variants(params):
-    qs = sellable_variants()
-    if params.get("country"):
-        qs = qs.filter(countries__contains=[params["country"].strip().upper()])
-    if params.get("scope") == "single":
-        qs = qs.filter(countries__len=1)
-    elif params.get("scope") == "multi":
-        qs = qs.filter(countries__len__gt=1)
-    if params.get("region"):
-        qs = qs.filter(region=params["region"])
-    if params.get("product_type"):
-        qs = qs.filter(product__product_type=params["product_type"])
-    if params.get("featured") == "true":
-        qs = qs.filter(is_featured=True)
-    if params.get("search"):
-        s = params["search"]
-        qs = qs.filter(Q(name__icontains=s) | Q(product__product_name__icontains=s))
-    return qs
+from catalog.models import PopularCountry, Product, ProductType, RegionPlan, active_regions, country_name
+from catalog.serializers import DestinationSerializer, PlanSerializer, ProductSerializer, WifiPlanSerializer
 
 
 class PublicMixin:
@@ -46,13 +20,13 @@ class ProductListView(PublicMixin, generics.ListAPIView):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
-        vqs = filtered_variants(self.request.query_params)
-        return (
-            Product.objects.filter(is_active=True, variants__in=vqs)
-            .distinct()
-            .prefetch_related(Prefetch("variants", queryset=vqs, to_attr="matching_variants"))
-            .order_by("product_name")
-        )
+        p = self.request.query_params
+        qs = Product.objects.filter(is_active=True)
+        if p.get("product_type"):
+            qs = qs.filter(product_type=p["product_type"])
+        if p.get("search"):
+            qs = qs.filter(product_name__icontains=p["search"])
+        return qs
 
     def list(self, request, *args, **kwargs):
         key = "products:" + "&".join(f"{k}={v}" for k, v in sorted(request.query_params.items()))
@@ -61,54 +35,34 @@ class ProductListView(PublicMixin, generics.ListAPIView):
 
 class ProductDetailView(PublicMixin, generics.RetrieveAPIView):
     serializer_class = ProductSerializer
-
-    def get_queryset(self):
-        return Product.objects.filter(is_active=True).prefetch_related(
-            Prefetch("variants", queryset=sellable_variants(), to_attr="matching_variants")
-        )
+    queryset = Product.objects.filter(is_active=True)
 
 
 def build_destinations():
+    # shortcut: every country carries its plans, split into a detail endpoint past ~500KB
+    types = set(Product.objects.filter(is_active=True).values_list("product_type", flat=True))
+    sells_wifi, sells_plans = ProductType.POCKET_WIFI in types, bool(types - {ProductType.POCKET_WIFI})
+    popular = set(PopularCountry.objects.values_list("country_code", flat=True))
     by_code = {}
-    for v in sellable_variants():
-        for code in v.countries:
-            d = by_code.setdefault(code, {"single_region": None, "pack_region": None, "from_price": None, "packs": 0})
-            d["from_price"] = v.price if d["from_price"] is None else min(d["from_price"], v.price)
-            if v.scope == "multi":
-                d["packs"] += 1
-                d["pack_region"] = d["pack_region"] or v.region
-            else:
-                d["single_region"] = d["single_region"] or v.region
-    out = []
-    for code, d in by_code.items():
-        name = country_name(code)
-        out.append({
-            "country_code": code,
-            "country_name": name,
-            "slug": slugify(name),
-            "region": d["single_region"] or d["pack_region"],
-            "from_price": f"{d['from_price']:.2f}",
-            "multi_country_pack_count": d["packs"],
-        })
-    return sorted(out, key=lambda d: d["country_name"])
+    regions = active_regions().prefetch_related(Prefetch("plans", queryset=RegionPlan.objects.filter(is_active=True), to_attr="sold_plans"))
+    for region in regions:
+        sold = [p for p in region.sold_plans if (sells_wifi if p.for_wifi else sells_plans)]
+        if not sold:
+            continue
+        priced = {
+            "region": {"id": region.id, "name": region.name},
+            "from_price": min(p.price for p in sold),
+            "plans": PlanSerializer([p for p in sold if not p.for_wifi], many=True).data,
+            "wifi_plans": WifiPlanSerializer([p for p in sold if p.for_wifi], many=True).data,
+        }
+        for code in region.countries:
+            name = country_name(code)
+            # oldest region wins
+            by_code.setdefault(code, {"country_code": code, "country_name": name, "slug": slugify(name), "is_popular": code in popular, **priced})
+    return sorted(by_code.values(), key=lambda d: d["country_name"])
 
 
 class DestinationsView(PublicMixin, APIView):
     @extend_schema(responses=DestinationSerializer(many=True))
     def get(self, request):
-        return Response(cache.get_or_build("destinations", build_destinations))
-
-
-def build_packs():
-    order = [r.value for r in Region]
-    packs = sorted(sellable_variants().filter(countries__len__gt=1), key=lambda v: (order.index(v.region), v.price))
-    groups = {}
-    for v in packs:
-        groups.setdefault(v.region, []).append(PackSerializer(v).data)
-    return [{"region": r, "packs": p} for r, p in groups.items()]
-
-
-class MultiCountryPacksView(PublicMixin, APIView):
-    @extend_schema(responses=PackGroupSerializer(many=True))
-    def get(self, request):
-        return Response(cache.get_or_build("packs", build_packs))
+        return Response(cache.get_or_build("destinations", lambda: DestinationSerializer(build_destinations(), many=True).data))

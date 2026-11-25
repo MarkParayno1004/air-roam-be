@@ -1,57 +1,46 @@
-from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from catalog.models import Product, ProductVariant, country_name
-
-VARIANT_FIELDS = [
-    "id", "name", "countries", "scope", "region", "tag", "is_featured",
-    "data_mb", "validity_days", "price", "pricing_unit",
-]
+from catalog.models import Product, RegionPlan
 
 
-class VariantSerializer(serializers.ModelSerializer):
-    scope = serializers.ReadOnlyField()
+class PlanSerializer(serializers.ModelSerializer):
+    label = serializers.ReadOnlyField()
+    validity_days = serializers.IntegerField()  # only Pocket WiFi plans have none
 
     class Meta:
-        model = ProductVariant
-        fields = VARIANT_FIELDS
+        model = RegionPlan
+        fields = ["id", "label", "data_mb", "validity_days", "price"]
+
+
+class WifiPlanSerializer(serializers.ModelSerializer):
+    label = serializers.ReadOnlyField()
+
+    class Meta:
+        model = RegionPlan
+        fields = ["id", "name", "label", "data_mb", "price"]
+        read_only_fields = fields  # output shape; marks fields required in the OpenAPI schema
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    variants = VariantSerializer(many=True, source="matching_variants")
-
     class Meta:
         model = Product
-        fields = ["id", "product_name", "product_type", "product_thumbnail_img", "product_description", "variants"]
+        fields = ["id", "product_name", "product_type", "product_thumbnail_img", "product_description"]
 
 
-class DestinationSerializer(serializers.Serializer):
-    country_code = serializers.CharField()
-    country_name = serializers.CharField()
-    slug = serializers.CharField()
-    region = serializers.CharField()
-    from_price = serializers.DecimalField(max_digits=12, decimal_places=2)
-    multi_country_pack_count = serializers.IntegerField()
-
-
-class PackCountrySerializer(serializers.Serializer):
-    code = serializers.CharField()
+class DestinationRegionSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
     name = serializers.CharField()
 
 
-class PackSerializer(VariantSerializer):
-    product_type = serializers.CharField(source="product.product_type")
-    product_name = serializers.CharField(source="product.product_name")
-    countries = serializers.SerializerMethodField()
+class DestinationSerializer(serializers.Serializer):
+    """A country, its price region and what it costs there."""
 
-    class Meta(VariantSerializer.Meta):
-        fields = VARIANT_FIELDS + ["product_type", "product_name"]
+    region = DestinationRegionSerializer()
 
-    @extend_schema_field(PackCountrySerializer(many=True))
-    def get_countries(self, v):
-        return [{"code": c, "name": country_name(c)} for c in v.countries]
-
-
-class PackGroupSerializer(serializers.Serializer):
-    region = serializers.CharField()
-    packs = PackSerializer(many=True)
+    country_code = serializers.CharField()
+    country_name = serializers.CharField()
+    slug = serializers.CharField()
+    from_price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    plans = PlanSerializer(many=True)
+    wifi_plans = WifiPlanSerializer(many=True)
+    is_popular = serializers.BooleanField()
