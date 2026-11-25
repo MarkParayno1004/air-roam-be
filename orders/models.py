@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from catalog.models import ProductVariant
+from catalog.models import Product, RegionPlan
 from common.models import SoftDeleteModel
 
 
@@ -27,7 +27,8 @@ class Order(SoftDeleteModel):
     order_status = models.CharField(max_length=20, choices=OrderStatus.choices, default=OrderStatus.PENDING_PAYMENT)
     client = models.CharField(max_length=3, choices=Client.choices, default=Client.WEB)
     currency = models.CharField(max_length=3, default="PHP")
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # includes delivery_fee
+    delivery_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     xendit_invoice_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
     xendit_invoice_url = models.URLField(max_length=500, null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
@@ -42,7 +43,8 @@ class Order(SoftDeleteModel):
 class OrderLine(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="lines")
-    product_variant = models.ForeignKey(ProductVariant, on_delete=models.PROTECT, related_name="order_lines")
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="order_lines")
+    region_plan = models.ForeignKey(RegionPlan, on_delete=models.PROTECT, related_name="order_lines", null=True, blank=True)  # null = Pocket WiFi
     product_name_snapshot = models.CharField(max_length=200)
     variant_name_snapshot = models.CharField(max_length=200)
     product_type_snapshot = models.CharField(max_length=20)

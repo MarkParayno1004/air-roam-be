@@ -89,23 +89,35 @@ def variant_factory(db):
 
 
 @pytest.fixture
-def order_factory(variant_factory, user):
-    """Order created through checkout (no Xendit call). kind: 'esim' | 'wifi'."""
+def product_factory(db):
+    from catalog.models import Product
+
+    def make(product_type="esim", **fields):
+        return Product.objects.create(**{"product_name": f"Air Roam {product_type}", "product_type": product_type, **fields})
+
+    return make
+
+
+@pytest.fixture
+def order_factory(product_factory, region_factory, plan_factory, user):
+    """Japan order created through checkout (no Xendit call). kind: 'esim' (799) | 'wifi' (350/day)."""
     from datetime import timedelta
     from decimal import Decimal
 
     from django.utils import timezone
 
+    from catalog.models import region_for_country
     from orders.checkout import create_order
 
     def make(kind="esim", owner=None, client="web", start_in_days=3, nights=6):
+        region = region_for_country("JP") or region_factory(pocket_wifi_daily_rate=Decimal("350.00"))
+        line = {"country_code": "JP", "quantity": 1}
         if kind == "wifi":
-            v = variant_factory(product_type="pocket_wifi", name="Japan Pocket WiFi", price=Decimal("350.00"), pricing_unit="per_day", validity_days=None)
             start = timezone.now() + timedelta(days=start_in_days)
-            line = {"variant_id": v.id, "quantity": 1, "expected_unit_price": v.price, "start_at": start, "end_at": start + timedelta(days=nights)}
+            line |= {"product_id": product_factory("pocket_wifi").id, "expected_unit_price": Decimal("350.00"), "start_at": start, "end_at": start + timedelta(days=nights)}
         else:
-            v = variant_factory()
-            line = {"variant_id": v.id, "quantity": 1, "expected_unit_price": v.price}
+            plan = plan_factory(region=region, price=Decimal("799.00"))
+            line |= {"product_id": product_factory("esim").id, "region_plan_id": plan.id, "expected_unit_price": plan.price}
         return create_order(owner or user, client, [line]).order
 
     return make

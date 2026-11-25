@@ -13,9 +13,3 @@ class BookingDetailSerializer(BookingSerializer):
 
     class Meta(BookingSerializer.Meta):
         fields = BookingSerializer.Meta.fields + ["order_id", "order_line_id", "variant_name", "product_type", "pricing_unit", "countries"]
-
-
-class BookingInputSerializer(serializers.Serializer):
-    start_at = serializers.DateTimeField()
-    end_at = serializers.DateTimeField()
-    destination_country_codes = serializers.ListField(child=serializers.CharField(max_length=2), required=False)
