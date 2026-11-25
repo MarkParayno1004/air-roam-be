@@ -1,4 +1,4 @@
-# Air Roam backend (phase 1)
+# Air Roam backend
 
 Django + DRF API for the Air Roam web store (`/api/v1`) and admin dashboard (`/api/v1/staff`).
 Design: `../docs/superpowers/specs/2026-11-23-air-roam-backend-design.md`.
@@ -6,7 +6,7 @@ Design: `../docs/superpowers/specs/2026-11-23-air-roam-backend-design.md`.
 ## Run locally
 
 ```powershell
-docker compose up -d                      # Postgres 17 on :5433, Redis 7 on :6379
+docker compose up -d                      # Postgres 17 on DB_PORT, Redis 7 on :6379
 python -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 copy .env.example .env                    # then set DJANGO_SECRET_KEY to a long random string
@@ -34,4 +34,3 @@ Point the Invoice callback URL at `https://<public-url>/api/v1/payments/xendit/w
 ## Production switches (hosting is decided later)
 
 `DEBUG=false`, `COOKIE_SECURE=true`, `ALLOWED_HOSTS`, `CORS_ALLOWED_ORIGINS` / `CSRF_TRUSTED_ORIGINS` (`https://airroam.ph`, `https://admin.airroam.ph`), `CSRF_COOKIE_DOMAIN=.airroam.ph`, `SECURE_SSL_REDIRECT=true`, `SECURE_HSTS_SECONDS`, `ADMIN_ENABLED=false`, `WEB_REBUILD_HOOK_URL` (Cloudflare Pages deploy hook). Run `manage.py check --deploy` with those set.
-# air-roam-be
