@@ -29,8 +29,9 @@ class Order(SoftDeleteModel):
     currency = models.CharField(max_length=3, default="PHP")
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # includes delivery_fee
     delivery_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    xendit_invoice_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
-    xendit_invoice_url = models.URLField(max_length=500, null=True, blank=True)
+    payment_session_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    payment_url = models.URLField(max_length=500, null=True, blank=True)
+    received_centavos = models.PositiveBigIntegerField(null=True, blank=True)  # session payment already handled; a repeat is a no-op
     paid_at = models.DateTimeField(null=True, blank=True)
     # Set when something needs a human, e.g. a payment arrived after the order was cancelled/expired.
     needs_attention = models.BooleanField(default=False)
@@ -38,6 +39,11 @@ class Order(SoftDeleteModel):
 
     class Meta(SoftDeleteModel.Meta):
         ordering = ["-created_at"]
+
+    def flag(self, note):
+        """Ask staff to look, keeping earlier notes. The caller holds the row lock and saves."""
+        self.needs_attention = True
+        self.attention_note = f"{self.attention_note}\n{note}".strip()
 
 
 class OrderLine(models.Model):

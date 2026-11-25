@@ -26,10 +26,12 @@ copy .env.example .env                    # then set DJANGO_SECRET_KEY to a long
 
 Tests need the Docker Postgres running (ArrayField). Redis is optional: without `REDIS_URL` the cache falls back to in-memory.
 
-## Xendit (test mode)
+## PayMongo (test mode)
 
-Set `XENDIT_SECRET_KEY` (a `xnd_development_…` key) and `XENDIT_CALLBACK_TOKEN` from the Xendit dashboard in Test Mode.
-Point the Invoice callback URL at `https://<public-url>/api/v1/payments/xendit/webhook` (use a tunnel such as `cloudflared` or `ngrok` locally).
+Set `PAYMONGO_SECRET_KEY` (a `sk_test_…` key) from the PayMongo dashboard in test mode, and `PAYMONGO_METHODS` to methods enabled on the account (listing any other makes checkout fail).
+Create a webhook for `checkout_session.payment.paid` at `https://<public-url>/api/v1/payments/paymongo/webhook` (use a tunnel such as `cloudflared` or `ngrok` locally) and put its secret in `PAYMONGO_WEBHOOK_SECRET`. Test and live mode each have their own key and webhook secret.
+
+PayMongo checkouts never expire by themselves: schedule `manage.py expire_unpaid_orders` hourly (expires orders unpaid for 24 hours; `--hours` changes that).
 
 ## Production switches (hosting is decided later)
 

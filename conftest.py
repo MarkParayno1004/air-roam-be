@@ -1,4 +1,9 @@
+import hashlib
+import hmac
+import json
+
 import pytest
+import requests
 from django.core.cache import cache
 from rest_framework.test import APIClient
 
@@ -10,6 +15,74 @@ def _clear_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+class FakePayMongo:
+    """Stands in for `requests` inside payments.paymongo: keeps sessions, records calls, fails on demand."""
+
+    def __init__(self):
+        self.sessions, self.calls, self.down, self.fail = {}, [], False, {}
+
+    def _answer(self, method, url, body, auth, timeout):
+        self.calls.append({"method": method, "url": url, "json": body, "auth": auth, "timeout": timeout})
+        path = url.removeprefix("https://api.paymongo.com/v1/checkout_sessions")
+        assert path != url, f"unexpected URL {url}"
+        if self.down:
+            raise requests.ConnectionError("down")
+        _, sid, *action = path.split("/") if path else ("", f"cs_{len(self.sessions) + 1}")
+        resp = requests.Response()
+        resp.status_code = self.fail.get(sid, 200)
+        if resp.status_code == 200:
+            if not path:
+                attrs = {"checkout_url": f"https://checkout.paymongo.com/{sid}", "status": "active", "payments": [], **body["data"]["attributes"]}
+                self.sessions[sid] = {"id": sid, "attributes": attrs}
+            elif action == ["expire"]:
+                if self.sessions[sid]["attributes"]["status"] == "active":
+                    self.sessions[sid]["attributes"]["status"] = "expired"
+                else:
+                    resp.status_code = 400
+            resp._content = json.dumps({"data": self.sessions[sid]}).encode()
+        return resp
+
+    def post(self, url, json=None, auth=None, timeout=None):
+        return self._answer("POST", url, json, auth, timeout)
+
+    def get(self, url, auth=None, timeout=None):
+        return self._answer("GET", url, None, auth, timeout)
+
+    def checkout(self, order):
+        from payments import paymongo
+
+        paymongo.create_checkout(order)
+        return order.payment_session_id
+
+    def pay(self, order, centavos=None, status="paid"):
+        amount = int(order.total_amount * 100) if centavos is None else centavos
+        self.sessions[order.payment_session_id]["attributes"]["payments"].append({"attributes": {"status": status, "amount": amount}})
+
+    def hook(self, api, session_id, type="checkout_session.payment.paid", **sign):
+        """Deliver a signed event whose body claims the session is paid."""
+        paid = [{"attributes": {"status": "paid", "amount": 79900}}]
+        body = json.dumps({"data": {"attributes": {"type": type, "livemode": False, "data": {"id": session_id, "attributes": {"payments": paid}}}}})
+        return self.send(api, body, **sign)
+
+    def send(self, api, body, secret="whsk_test", mode="te"):
+        sig = hmac.new(secret.encode(), f"1700000000.{body}".encode(), hashlib.sha256).hexdigest()
+        header = "t=1700000000," + (f"te={sig},li=" if mode == "te" else f"te=,li={sig}")
+        return api.post("/api/v1/payments/paymongo/webhook", body, content_type="application/json", HTTP_PAYMONGO_SIGNATURE=header)
+
+
+@pytest.fixture(autouse=True)
+def pay_api(settings, monkeypatch):
+    """Autouse: no test can reach the real PayMongo."""
+    from payments import paymongo
+
+    settings.PAYMONGO_SECRET_KEY = "sk_test_abc"
+    settings.PAYMONGO_WEBHOOK_SECRET = "whsk_test"
+    settings.PAYMONGO_METHODS = ["gcash", "paymaya", "qrph", "card"]
+    fake = FakePayMongo()
+    monkeypatch.setattr(paymongo, "requests", fake)
+    return fake
 
 
 @pytest.fixture
@@ -92,7 +165,7 @@ def product_factory(db):
 
 @pytest.fixture
 def order_factory(product_factory, region_factory, plan_factory, wifi_plan_factory, user):
-    """Japan order created through checkout (no Xendit call). kind: 'esim' (799) | 'wifi' (350/day)."""
+    """Japan order created through checkout (no PayMongo call). kind: 'esim' (799) | 'wifi' (350/day)."""
     from datetime import timedelta
     from decimal import Decimal
 

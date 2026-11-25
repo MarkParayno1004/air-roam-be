@@ -1,73 +1,45 @@
-import hmac
+import json
 import logging
-import uuid
-from decimal import Decimal, InvalidOperation
 
-from django.conf import settings
-from django.db import transaction
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from bookings.models import Booking
-from orders.models import Order
-from orders.status import transition
+from payments import paymongo
+from payments.settle import settle
 
 log = logging.getLogger(__name__)
 
 
-@extend_schema(exclude=True)  # called by Xendit, not by our clients
-class XenditWebhookView(APIView):
-    """Invoice callback. Token-verified, amount-checked, idempotent (repeats and late events are no-ops)."""
+@extend_schema(exclude=True)  # called by PayMongo, not by our clients
+class PayMongoWebhookView(APIView):
+    """Payment event. Signature-verified, then settled from what PayMongo's API says, never from the body."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
     throttle_classes = []
 
     def post(self, request):
-        expected = settings.XENDIT_CALLBACK_TOKEN
-        got = request.headers.get("x-callback-token", "")
-        if not expected or not hmac.compare_digest(got, expected):
-            return Response({"detail": "Invalid callback token."}, status=403)
-
-        data = request.data
+        if not paymongo.valid_signature(request.body, request.headers.get("Paymongo-Signature", "")):
+            log.warning("paymongo webhook rejected: bad signature")
+            return Response({"detail": "Invalid signature."}, status=403)
         try:
-            amount = Decimal(str(data.get("paid_amount", data.get("amount"))))
-        except (InvalidOperation, TypeError):
-            return Response({"detail": "Missing amount."}, status=400)
-
-        with transaction.atomic():
-            order = Order.all_objects.select_for_update().filter(pk=data.get("external_id")).first() if _is_uuid(data.get("external_id")) else None
-            if order is None:
-                return Response({"detail": "Unknown order."}, status=404)
-            if amount != order.total_amount:
-                return Response({"detail": "Amount does not match the order."}, status=400)
-            status = data.get("status")
-            if order.order_status != "pending_payment":
-                if status == "PAID" and order.order_status != "paid":
-                    # Money arrived for an order we already closed: never drop it silently.
-                    order.needs_attention = True
-                    order.attention_note = (
-                        f"Paid via Xendit invoice {data.get('id', '')} after the order was {order.order_status}. "
-                        "Refund the traveler or reinstate the order."
-                    )
-                    order.save(update_fields=["needs_attention", "attention_note", "updated_at"])
-                    log.error("payment received for %s order %s", order.order_status, order.id)
+            event = json.loads(request.body)["data"]["attributes"]
+            if event["type"] != "checkout_session.payment.paid":
                 return Response({"status": "ignored"})
-            if status == "PAID":
-                transition(order, "paid")
-                order.save(update_fields=["order_status", "paid_at", "updated_at"])
-                Booking.objects.filter(order_line__order=order, booking_status="pending").update(booking_status="confirmed")
-            elif status == "EXPIRED":
-                transition(order, "expired")
-                order.save(update_fields=["order_status", "updated_at"])
+            session_id = event["data"]["id"]
+        except (ValueError, KeyError, TypeError):
+            return Response({"detail": "Malformed event."}, status=400)
+        try:
+            session = paymongo.get_session(session_id)
+        except Exception:
+            log.exception("could not fetch paymongo session %s", session_id)
+            return Response({"detail": "Payment provider unavailable."}, status=503)  # PayMongo retries
+        if not paymongo.paid_centavos(session):
+            log.warning("paid event for paymongo session %s, which PayMongo reports as unpaid", session_id)
+            return Response({"detail": "Session is not paid."}, status=503)  # retry in case their API lags behind the event
+        if settle(session) is None:
+            log.error("paid paymongo session %s matches no order", session_id)
+            return Response({"detail": "Unknown order."}, status=404)
         return Response({"status": "ok"})
-
-
-def _is_uuid(value):
-    try:
-        uuid.UUID(str(value))
-        return True
-    except ValueError:
-        return False

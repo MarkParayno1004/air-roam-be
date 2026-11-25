@@ -18,18 +18,6 @@ def day(n):
     return d.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
 
 
-@pytest.fixture(autouse=True)
-def fake_invoice(monkeypatch):
-    from payments import xendit
-
-    def create_invoice(order):
-        order.xendit_invoice_id, order.xendit_invoice_url = "inv_1", "https://checkout.xendit.co/inv_1"
-        order.save(update_fields=["xendit_invoice_id", "xendit_invoice_url"])
-        return order.xendit_invoice_id, order.xendit_invoice_url
-
-    monkeypatch.setattr(xendit, "create_invoice", create_invoice)
-
-
 class World:
     """Asia 1 (JP, KR) 100/day with a 399 plan, NA (US) 50/day, EU (FR) 10/day (unlimited WiFi); an eSIM and a Pocket WiFi product."""
 
@@ -100,8 +88,9 @@ def test_wifi_creates_a_pending_booking(auth_api, world):
 
 def test_esim_only_has_no_fee(auth_api, world):
     body = ok(auth_api, world.esim(quantity=2))
-    assert body["invoice_url"] == "https://checkout.xendit.co/inv_1"
+    assert body["invoice_url"] == "https://checkout.paymongo.com/cs_1"
     order = body["order"]
+    assert order["payment_url"] == body["invoice_url"]
     assert (order["delivery_fee"], order["total_amount"], order["order_status"]) == ("0.00", "798.00", "pending_payment")
     ln = order["lines"][0]
     assert ln["booking"] is None and ln["variant_name_snapshot"] == "Japan 5GB · 7 days" and ln["countries_snapshot"] == ["JP"]
@@ -231,13 +220,8 @@ def test_checkout_rejects_empty_lines(auth_api):
     assert auth_api.post(URL, {"client": "web", "lines": []}, format="json").status_code == 400
 
 
-def test_xendit_failure_cancels_order(auth_api, world, monkeypatch):
-    from payments import xendit
-
-    def boom(order):
-        raise RuntimeError("xendit down")
-
-    monkeypatch.setattr(xendit, "create_invoice", boom)
+def test_paymongo_failure_cancels_order(auth_api, world, pay_api):
+    pay_api.down = True
     r = post(auth_api, world.esim())
     assert r.status_code == 502 and r.json()["code"] == "payment_provider_unavailable"
     assert Order.objects.get().order_status == "cancelled"

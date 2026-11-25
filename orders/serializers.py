@@ -34,7 +34,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ["id", "order_status", "client", "currency", "delivery_fee", "total_amount", "xendit_invoice_url", "paid_at", "created_at", "updated_at", "lines"]
+        fields = ["id", "order_status", "client", "currency", "delivery_fee", "total_amount", "payment_url", "paid_at", "created_at", "updated_at", "lines"]
         read_only_fields = fields
 
 

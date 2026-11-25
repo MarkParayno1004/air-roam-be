@@ -1841,7 +1841,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           readOnly: true
-        xendit_invoice_url:
+        payment_url:
           type: string
           format: uri
           readOnly: true
@@ -1873,9 +1873,9 @@ components:
       - lines
       - order_status
       - paid_at
+      - payment_url
       - total_amount
       - updated_at
-      - xendit_invoice_url
     OrderCustomer:
       type: object
       properties:
@@ -2763,7 +2763,7 @@ components:
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           readOnly: true
-        xendit_invoice_url:
+        payment_url:
           type: string
           format: uri
           readOnly: true
@@ -2790,7 +2790,7 @@ components:
           allOf:
           - $ref: '#/components/schemas/OrderCustomer'
           readOnly: true
-        xendit_invoice_id:
+        payment_session_id:
           type: string
           nullable: true
           maxLength: 100
@@ -2807,10 +2807,10 @@ components:
       - lines
       - order_status
       - paid_at
+      - payment_url
       - total_amount
       - updated_at
       - user
-      - xendit_invoice_url
     StaffPlan:
       type: object
       properties:
