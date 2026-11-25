@@ -315,6 +315,8 @@ paths:
   /api/v1/bookings:
     get:
       operationId: v1_bookings_list
+      description: Pocket WiFi bookings are made at checkout; only staff can change
+        them afterwards.
       parameters:
       - name: page
         required: false
@@ -342,6 +344,8 @@ paths:
   /api/v1/bookings/{id}:
     get:
       operationId: v1_bookings_retrieve
+      description: Pocket WiFi bookings are made at checkout; only staff can change
+        them afterwards.
       parameters:
       - in: path
         name: id
@@ -351,37 +355,6 @@ paths:
         required: true
       tags:
       - v1
-      security:
-      - jwtAuth: []
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BookingDetail'
-          description: ''
-    patch:
-      operationId: v1_bookings_partial_update
-      parameters:
-      - in: path
-        name: id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - v1
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PatchedBookingInput'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/PatchedBookingInput'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/PatchedBookingInput'
       security:
       - jwtAuth: []
       responses:
@@ -464,55 +437,6 @@ paths:
           description: ''
         '204':
           description: No response body
-  /api/v1/multi-country-packs:
-    get:
-      operationId: v1_multi_country_packs_list
-      tags:
-      - v1
-      security:
-      - {}
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/PackGroup'
-          description: ''
-  /api/v1/order-lines/{line_id}/booking:
-    post:
-      operationId: v1_order_lines_booking_create
-      parameters:
-      - in: path
-        name: line_id
-        schema:
-          type: string
-          format: uuid
-        required: true
-      tags:
-      - v1
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BookingInput'
-          application/x-www-form-urlencoded:
-            schema:
-              $ref: '#/components/schemas/BookingInput'
-          multipart/form-data:
-            schema:
-              $ref: '#/components/schemas/BookingInput'
-        required: true
-      security:
-      - jwtAuth: []
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BookingDetail'
-          description: ''
   /api/v1/orders:
     get:
       operationId: v1_orders_list
@@ -1067,9 +991,165 @@ paths:
               schema:
                 $ref: '#/components/schemas/StaffProduct'
           description: ''
-  /api/v1/staff/products/{product_pk}/variants:
+  /api/v1/staff/regions:
     get:
-      operationId: v1_staff_products_variants_list
+      operationId: v1_staff_regions_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedStaffRegionList'
+          description: ''
+    post:
+      operationId: v1_staff_regions_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRegion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffRegion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffRegion'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffRegion'
+          description: ''
+  /api/v1/staff/regions/{id}:
+    get:
+      operationId: v1_staff_regions_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this region.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffRegion'
+          description: ''
+    put:
+      operationId: v1_staff_regions_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this region.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StaffRegion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/StaffRegion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StaffRegion'
+        required: true
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffRegion'
+          description: ''
+    patch:
+      operationId: v1_staff_regions_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this region.
+        required: true
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRegion'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRegion'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedStaffRegion'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffRegion'
+          description: ''
+    delete:
+      operationId: v1_staff_regions_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this region.
+        required: true
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/staff/regions/{region_pk}/plans:
+    get:
+      operationId: v1_staff_regions_plans_list
       parameters:
       - name: page
         required: false
@@ -1084,7 +1164,7 @@ paths:
         schema:
           type: integer
       - in: path
-        name: product_pk
+        name: region_pk
         schema:
           type: string
           format: uuid
@@ -1098,13 +1178,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PaginatedStaffVariantList'
+                $ref: '#/components/schemas/PaginatedStaffPlanList'
           description: ''
     post:
-      operationId: v1_staff_products_variants_create
+      operationId: v1_staff_regions_plans_create
       parameters:
       - in: path
-        name: product_pk
+        name: region_pk
         schema:
           type: string
           format: uuid
@@ -1115,13 +1195,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StaffVariant'
+              $ref: '#/components/schemas/StaffPlan'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/StaffVariant'
+              $ref: '#/components/schemas/StaffPlan'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/StaffVariant'
+              $ref: '#/components/schemas/StaffPlan'
         required: true
       security:
       - jwtAuth: []
@@ -1130,11 +1210,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StaffVariant'
+                $ref: '#/components/schemas/StaffPlan'
           description: ''
-  /api/v1/staff/products/{product_pk}/variants/{id}:
+  /api/v1/staff/regions/{region_pk}/plans/{id}:
     get:
-      operationId: v1_staff_products_variants_retrieve
+      operationId: v1_staff_regions_plans_retrieve
       parameters:
       - in: path
         name: id
@@ -1143,7 +1223,7 @@ paths:
           format: uuid
         required: true
       - in: path
-        name: product_pk
+        name: region_pk
         schema:
           type: string
           format: uuid
@@ -1157,10 +1237,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StaffVariant'
+                $ref: '#/components/schemas/StaffPlan'
           description: ''
     put:
-      operationId: v1_staff_products_variants_update
+      operationId: v1_staff_regions_plans_update
       parameters:
       - in: path
         name: id
@@ -1169,7 +1249,7 @@ paths:
           format: uuid
         required: true
       - in: path
-        name: product_pk
+        name: region_pk
         schema:
           type: string
           format: uuid
@@ -1180,13 +1260,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/StaffVariant'
+              $ref: '#/components/schemas/StaffPlan'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/StaffVariant'
+              $ref: '#/components/schemas/StaffPlan'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/StaffVariant'
+              $ref: '#/components/schemas/StaffPlan'
         required: true
       security:
       - jwtAuth: []
@@ -1195,10 +1275,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StaffVariant'
+                $ref: '#/components/schemas/StaffPlan'
           description: ''
     patch:
-      operationId: v1_staff_products_variants_partial_update
+      operationId: v1_staff_regions_plans_partial_update
       parameters:
       - in: path
         name: id
@@ -1207,7 +1287,7 @@ paths:
           format: uuid
         required: true
       - in: path
-        name: product_pk
+        name: region_pk
         schema:
           type: string
           format: uuid
@@ -1218,13 +1298,13 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PatchedStaffVariant'
+              $ref: '#/components/schemas/PatchedStaffPlan'
           application/x-www-form-urlencoded:
             schema:
-              $ref: '#/components/schemas/PatchedStaffVariant'
+              $ref: '#/components/schemas/PatchedStaffPlan'
           multipart/form-data:
             schema:
-              $ref: '#/components/schemas/PatchedStaffVariant'
+              $ref: '#/components/schemas/PatchedStaffPlan'
       security:
       - jwtAuth: []
       responses:
@@ -1232,10 +1312,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StaffVariant'
+                $ref: '#/components/schemas/StaffPlan'
           description: ''
     delete:
-      operationId: v1_staff_products_variants_destroy
+      operationId: v1_staff_regions_plans_destroy
       parameters:
       - in: path
         name: id
@@ -1244,7 +1324,7 @@ paths:
           format: uuid
         required: true
       - in: path
-        name: product_pk
+        name: region_pk
         schema:
           type: string
           format: uuid
@@ -1531,23 +1611,6 @@ components:
       - start_at
       - updated_at
       - variant_name
-    BookingInput:
-      type: object
-      properties:
-        start_at:
-          type: string
-          format: date-time
-        end_at:
-          type: string
-          format: date-time
-        destination_country_codes:
-          type: array
-          items:
-            type: string
-            maxLength: 2
-      required:
-      - end_at
-      - start_at
     BookingStatusEnum:
       enum:
       - pending
@@ -1578,9 +1641,17 @@ components:
     CheckoutLine:
       type: object
       properties:
-        variant_id:
+        product_id:
           type: string
           format: uuid
+        country_code:
+          type: string
+          maxLength: 2
+          minLength: 2
+        region_plan_id:
+          type: string
+          format: uuid
+          nullable: true
         quantity:
           type: integer
           maximum: 10
@@ -1595,15 +1666,11 @@ components:
         end_at:
           type: string
           format: date-time
-        destination_country_codes:
-          type: array
-          items:
-            type: string
-            maxLength: 2
       required:
+      - country_code
       - expected_unit_price
+      - product_id
       - quantity
-      - variant_id
     CheckoutResponse:
       type: object
       properties:
@@ -1642,6 +1709,7 @@ components:
       - csrfToken
     Destination:
       type: object
+      description: A country and what it costs there. Regions stay internal.
       properties:
         country_code:
           type: string
@@ -1649,20 +1717,25 @@ components:
           type: string
         slug:
           type: string
-        region:
-          type: string
         from_price:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        multi_country_pack_count:
-          type: integer
+        pocket_wifi_daily_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plan'
       required:
       - country_code
       - country_name
       - from_price
-      - multi_country_pack_count
-      - region
+      - plans
+      - pocket_wifi_daily_rate
       - slug
     LoginInput:
       type: object
@@ -1692,6 +1765,11 @@ components:
           readOnly: true
         currency:
           type: string
+          readOnly: true
+        delivery_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
           readOnly: true
         total_amount:
           type: string
@@ -1725,6 +1803,7 @@ components:
       - client
       - created_at
       - currency
+      - delivery_fee
       - id
       - lines
       - order_status
@@ -1758,10 +1837,15 @@ components:
           type: string
           format: uuid
           readOnly: true
-        product_variant:
+        product:
           type: string
           format: uuid
           readOnly: true
+        region_plan:
+          type: string
+          format: uuid
+          readOnly: true
+          nullable: true
         product_name_snapshot:
           type: string
           readOnly: true
@@ -1808,10 +1892,11 @@ components:
       - id
       - line_total
       - pricing_unit_snapshot
+      - product
       - product_name_snapshot
       - product_type_snapshot
-      - product_variant
       - quantity
+      - region_plan
       - rental_days
       - unit_price
       - variant_name_snapshot
@@ -1831,83 +1916,6 @@ components:
         * `cancelled` - Cancelled
         * `expired` - Expired
         * `refunded` - Refunded
-    Pack:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        countries:
-          type: array
-          items:
-            $ref: '#/components/schemas/PackCountry'
-          readOnly: true
-        scope:
-          type: string
-          readOnly: true
-        region:
-          $ref: '#/components/schemas/RegionEnum'
-        tag:
-          type: string
-          nullable: true
-          maxLength: 50
-        is_featured:
-          type: boolean
-        data_mb:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        validity_days:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        pricing_unit:
-          $ref: '#/components/schemas/PricingUnitEnum'
-        product_type:
-          type: string
-        product_name:
-          type: string
-      required:
-      - countries
-      - id
-      - name
-      - price
-      - product_name
-      - product_type
-      - region
-      - scope
-    PackCountry:
-      type: object
-      properties:
-        code:
-          type: string
-        name:
-          type: string
-      required:
-      - code
-      - name
-    PackGroup:
-      type: object
-      properties:
-        region:
-          type: string
-        packs:
-          type: array
-          items:
-            $ref: '#/components/schemas/Pack'
-      required:
-      - packs
-      - region
     PaginatedBookingDetailList:
       type: object
       required:
@@ -2023,6 +2031,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StaffOrder'
+    PaginatedStaffPlanList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffPlan'
     PaginatedStaffProductList:
       type: object
       required:
@@ -2046,6 +2077,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StaffProduct'
+    PaginatedStaffRegionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffRegion'
     PaginatedStaffUserList:
       type: object
       required:
@@ -2069,43 +2123,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StaffUser'
-    PaginatedStaffVariantList:
-      type: object
-      required:
-      - count
-      - results
-      properties:
-        count:
-          type: integer
-          example: 123
-        next:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=4
-        previous:
-          type: string
-          nullable: true
-          format: uri
-          example: http://api.example.org/accounts/?page=2
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/StaffVariant'
-    PatchedBookingInput:
-      type: object
-      properties:
-        start_at:
-          type: string
-          format: date-time
-        end_at:
-          type: string
-          format: date-time
-        destination_country_codes:
-          type: array
-          items:
-            type: string
-            maxLength: 2
     PatchedStaffBookingInput:
       type: object
       properties:
@@ -2122,6 +2139,39 @@ components:
           items:
             type: string
             maxLength: 2
+    PatchedStaffPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     PatchedStaffProduct:
       type: object
       properties:
@@ -2151,10 +2201,40 @@ components:
           type: string
           format: date-time
           readOnly: true
-        variants:
+    PatchedStaffRegion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        countries:
           type: array
           items:
-            $ref: '#/components/schemas/StaffVariant'
+            type: string
+            maxLength: 2
+        pocket_wifi_daily_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffPlan'
           readOnly: true
     PatchedStaffUser:
       type: object
@@ -2203,58 +2283,6 @@ components:
           type: string
           writeOnly: true
         created_at:
-          type: string
-          format: date-time
-          readOnly: true
-    PatchedStaffVariant:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        countries:
-          type: array
-          items:
-            type: string
-            maxLength: 2
-        scope:
-          type: string
-          readOnly: true
-        region:
-          $ref: '#/components/schemas/RegionEnum'
-        tag:
-          type: string
-          nullable: true
-          maxLength: 50
-        is_featured:
-          type: boolean
-        data_mb:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        validity_days:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        pricing_unit:
-          $ref: '#/components/schemas/PricingUnitEnum'
-        is_active:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
           type: string
           format: date-time
           readOnly: true
@@ -2315,12 +2343,37 @@ components:
       description: |-
         * `admin` - Admin
         * `marketing` - Marketing
+    Plan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+      required:
+      - id
+      - label
+      - price
+      - validity_days
     PriceUpdate:
       type: object
       properties:
-        variant_id:
-          type: string
-          format: uuid
         name:
           type: string
         old_unit_price:
@@ -2335,15 +2388,6 @@ components:
       - name
       - new_unit_price
       - old_unit_price
-      - variant_id
-    PricingUnitEnum:
-      enum:
-      - per_plan
-      - per_day
-      type: string
-      description: |-
-        * `per_plan` - Per plan
-        * `per_day` - Per day
     Product:
       type: object
       properties:
@@ -2362,15 +2406,10 @@ components:
           nullable: true
         product_description:
           type: string
-        variants:
-          type: array
-          items:
-            $ref: '#/components/schemas/Variant'
       required:
       - id
       - product_name
       - product_type
-      - variants
     ProductTypeEnum:
       enum:
       - sim
@@ -2388,28 +2427,6 @@ components:
           type: string
       required:
       - refresh
-    RegionEnum:
-      enum:
-      - asia
-      - europe
-      - north_america
-      - south_america
-      - africa
-      - oceania
-      - middle_east
-      - local_ph
-      - global
-      type: string
-      description: |-
-        * `asia` - Asia
-        * `europe` - Europe
-        * `north_america` - North America
-        * `south_america` - South America
-        * `africa` - Africa
-        * `oceania` - Oceania
-        * `middle_east` - Middle East
-        * `local_ph` - Local PH
-        * `global` - Global
     Register:
       type: object
       properties:
@@ -2439,14 +2456,10 @@ components:
     RemovedLine:
       type: object
       properties:
-        variant_id:
-          type: string
-          format: uuid
         name:
           type: string
       required:
       - name
-      - variant_id
     Session:
       type: object
       properties:
@@ -2634,6 +2647,11 @@ components:
         currency:
           type: string
           readOnly: true
+        delivery_fee:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
         total_amount:
           type: string
           format: decimal
@@ -2678,6 +2696,7 @@ components:
       - client
       - created_at
       - currency
+      - delivery_fee
       - id
       - lines
       - order_status
@@ -2686,6 +2705,46 @@ components:
       - updated_at
       - user
       - xendit_invoice_url
+    StaffPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        data_mb:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+          nullable: true
+        validity_days:
+          type: integer
+          maximum: 2147483647
+          minimum: 1
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - label
+      - price
+      - updated_at
+      - validity_days
     StaffProduct:
       type: object
       properties:
@@ -2715,11 +2774,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-        variants:
-          type: array
-          items:
-            $ref: '#/components/schemas/StaffVariant'
-          readOnly: true
       required:
       - created_at
       - id
@@ -2727,7 +2781,48 @@ components:
       - product_thumbnail_img
       - product_type
       - updated_at
-      - variants
+    StaffRegion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        countries:
+          type: array
+          items:
+            type: string
+            maxLength: 2
+        pocket_wifi_daily_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffPlan'
+          readOnly: true
+      required:
+      - countries
+      - created_at
+      - id
+      - name
+      - plans
+      - updated_at
     StaffUser:
       type: object
       properties:
@@ -2783,67 +2878,6 @@ components:
       - effective_address
       - email
       - id
-    StaffVariant:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        countries:
-          type: array
-          items:
-            type: string
-            maxLength: 2
-        scope:
-          type: string
-          readOnly: true
-        region:
-          $ref: '#/components/schemas/RegionEnum'
-        tag:
-          type: string
-          nullable: true
-          maxLength: 50
-        is_featured:
-          type: boolean
-        data_mb:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        validity_days:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        pricing_unit:
-          $ref: '#/components/schemas/PricingUnitEnum'
-        is_active:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-      required:
-      - countries
-      - created_at
-      - id
-      - name
-      - price
-      - region
-      - scope
-      - updated_at
     TokenPair:
       type: object
       properties:
@@ -2903,55 +2937,6 @@ components:
       - email
       - id
       - permissions
-    Variant:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-          readOnly: true
-        name:
-          type: string
-          maxLength: 200
-        countries:
-          type: array
-          items:
-            type: string
-            maxLength: 2
-        scope:
-          type: string
-          readOnly: true
-        region:
-          $ref: '#/components/schemas/RegionEnum'
-        tag:
-          type: string
-          nullable: true
-          maxLength: 50
-        is_featured:
-          type: boolean
-        data_mb:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        validity_days:
-          type: integer
-          maximum: 2147483647
-          minimum: 0
-          nullable: true
-        price:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        pricing_unit:
-          $ref: '#/components/schemas/PricingUnitEnum'
-      required:
-      - countries
-      - id
-      - name
-      - price
-      - region
-      - scope
   securitySchemes:
     jwtAuth:
       type: http

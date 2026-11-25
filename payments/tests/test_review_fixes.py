@@ -98,12 +98,5 @@ def test_missing_secret_key_refused_when_not_debug(monkeypatch):
         importlib.reload(s)
 
 
-@pytest.mark.parametrize("price", ["0", "-450.00"])
-def test_variant_price_must_be_positive(marketing_api, variant_factory, price):
-    v = variant_factory()
-    r = marketing_api.patch(f"/api/v1/staff/products/{v.product_id}/variants/{v.id}", {"price": price}, format="json")
-    assert r.status_code == 400 and "price" in r.json()
-
-
 def test_login_still_works(api, user):
     assert api.post("/api/v1/auth/login", {"email": user.email, "password": PASSWORD}, format="json").status_code == 200

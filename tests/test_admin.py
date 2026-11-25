@@ -4,10 +4,10 @@ from django.contrib import admin
 def test_models_registered_for_developer_admin():
     from accounts.models import User
     from bookings.models import Booking
-    from catalog.models import Product, ProductVariant, Region, RegionPlan
+    from catalog.models import Product, Region, RegionPlan
     from orders.models import Order, OrderLine
 
-    for model in (User, Product, ProductVariant, Region, RegionPlan, Order, OrderLine, Booking):
+    for model in (User, Product, Region, RegionPlan, Order, OrderLine, Booking):
         assert admin.site.is_registered(model), model.__name__
 
 

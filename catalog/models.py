@@ -16,18 +16,6 @@ class ProductType(models.TextChoices):
     POCKET_WIFI = "pocket_wifi", "Pocket WiFi"
 
 
-class VariantRegion(models.TextChoices):
-    ASIA = "asia", "Asia"
-    EUROPE = "europe", "Europe"
-    NORTH_AMERICA = "north_america", "North America"
-    SOUTH_AMERICA = "south_america", "South America"
-    AFRICA = "africa", "Africa"
-    OCEANIA = "oceania", "Oceania"
-    MIDDLE_EAST = "middle_east", "Middle East"
-    LOCAL_PH = "local_ph", "Local PH"
-    GLOBAL = "global", "Global"
-
-
 class PricingUnit(models.TextChoices):
     PER_PLAN = "per_plan", "Per plan"
     PER_DAY = "per_day", "Per day"
@@ -118,37 +106,3 @@ def overlapping_region(countries, exclude_pk=None):
     # shortcut: overlap checked in the serializer only, add a country table with a unique constraint if staff edit regions concurrently
     other = active_regions().filter(countries__overlap=countries).exclude(pk=exclude_pk).first()
     return (next(c for c in countries if c in other.countries), other) if other else None
-
-
-class ProductVariant(SoftDeleteModel):
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="variants")
-    name = models.CharField(max_length=200)
-    countries = ArrayField(models.CharField(max_length=2))
-    region = models.CharField(max_length=20, choices=VariantRegion.choices)
-    tag = models.CharField(max_length=50, null=True, blank=True)
-    is_featured = models.BooleanField(default=False)
-    data_mb = models.PositiveIntegerField(null=True, blank=True)  # null = unlimited
-    validity_days = models.PositiveIntegerField(null=True, blank=True)
-    price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
-    pricing_unit = models.CharField(max_length=10, choices=PricingUnit.choices, default=PricingUnit.PER_PLAN)
-    is_active = models.BooleanField(default=True)
-
-    class Meta(SoftDeleteModel.Meta):
-        ordering = ["price"]
-        indexes = [GinIndex(fields=["countries"], name="variant_countries_gin")]
-
-    def save(self, *args, **kwargs):
-        self.countries = normalize_countries(self.countries)
-        super().save(*args, **kwargs)
-
-    @property
-    def scope(self) -> str:
-        return "multi" if len(self.countries) > 1 else "single"
-
-    @property
-    def is_sellable(self):
-        p = self.product
-        return self.is_active and self.deleted_at is None and p.is_active and p.deleted_at is None
-
-    def __str__(self):
-        return self.name

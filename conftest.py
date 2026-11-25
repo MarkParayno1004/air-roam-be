@@ -73,22 +73,6 @@ def plan_factory(region_factory):
 
 
 @pytest.fixture
-def variant_factory(db):
-    from decimal import Decimal
-
-    from catalog.models import Product, ProductVariant
-
-    def make(product=None, product_type="esim", product_active=True, **fields):
-        if product is None:
-            product = Product.objects.create(product_name=fields.pop("product_name", "Air Roam eSIM"), product_type=product_type, is_active=product_active)
-        defaults = dict(name="Japan 10GB 7 days", countries=["JP"], region="asia", price=Decimal("799.00"), pricing_unit="per_plan", validity_days=7)
-        defaults.update(fields)
-        return ProductVariant.objects.create(product=product, **defaults)
-
-    return make
-
-
-@pytest.fixture
 def product_factory(db):
     from catalog.models import Product
 
