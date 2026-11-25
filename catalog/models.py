@@ -16,7 +16,7 @@ class ProductType(models.TextChoices):
     POCKET_WIFI = "pocket_wifi", "Pocket WiFi"
 
 
-class Region(models.TextChoices):
+class VariantRegion(models.TextChoices):
     ASIA = "asia", "Asia"
     EUROPE = "europe", "Europe"
     NORTH_AMERICA = "north_america", "North America"
@@ -62,11 +62,69 @@ class Product(SoftDeleteModel):
         return self.product_name
 
 
+class Region(SoftDeleteModel):
+    """Staff-only price zone. Customers pick a country; its region decides the price."""
+
+    name = models.CharField(max_length=100)
+    countries = ArrayField(models.CharField(max_length=2))
+    pocket_wifi_daily_rate = models.DecimalField(  # null = no Pocket WiFi here
+        max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    is_active = models.BooleanField(default=True)
+
+    class Meta(SoftDeleteModel.Meta):
+        ordering = ["name"]
+        indexes = [GinIndex(fields=["countries"], name="region_countries_gin")]
+
+    def save(self, *args, **kwargs):
+        self.countries = normalize_countries(self.countries)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class RegionPlan(SoftDeleteModel):
+    """A SIM/eSIM plan sold in every country of its region."""
+
+    region = models.ForeignKey(Region, on_delete=models.PROTECT, related_name="plans")
+    data_mb = models.PositiveIntegerField(null=True, blank=True, validators=[MinValueValidator(1)])  # null = unlimited
+    validity_days = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))])
+    is_active = models.BooleanField(default=True)
+
+    class Meta(SoftDeleteModel.Meta):
+        ordering = ["validity_days", "price"]
+
+    @property
+    def label(self) -> str:
+        data = f"{round(self.data_mb / 1024, 1):g}GB" if self.data_mb else "Unlimited"
+        return f"{data} · {self.validity_days} day{'' if self.validity_days == 1 else 's'}"
+
+    def __str__(self):
+        return f"{self.region} {self.label}"
+
+
+def active_regions():
+    return Region.objects.filter(is_active=True).order_by("created_at")
+
+
+def region_for_country(code):
+    return active_regions().filter(countries__contains=[code]).first()
+
+
+def overlapping_region(countries, exclude_pk=None):
+    """First (country, other active region) already covering one of these countries, or None."""
+    # shortcut: overlap checked in the serializer only, add a country table with a unique constraint if staff edit regions concurrently
+    other = active_regions().filter(countries__overlap=countries).exclude(pk=exclude_pk).first()
+    return (next(c for c in countries if c in other.countries), other) if other else None
+
+
 class ProductVariant(SoftDeleteModel):
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="variants")
     name = models.CharField(max_length=200)
     countries = ArrayField(models.CharField(max_length=2))
-    region = models.CharField(max_length=20, choices=Region.choices)
+    region = models.CharField(max_length=20, choices=VariantRegion.choices)
     tag = models.CharField(max_length=50, null=True, blank=True)
     is_featured = models.BooleanField(default=False)
     data_mb = models.PositiveIntegerField(null=True, blank=True)  # null = unlimited

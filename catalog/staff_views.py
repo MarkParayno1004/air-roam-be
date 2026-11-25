@@ -10,7 +10,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
 from accounts.permissions import IsMarketingOrAdmin
-from catalog.models import Product, ProductVariant, normalize_countries
+from catalog.models import Product, ProductVariant, Region, RegionPlan, country_name, normalize_countries, overlapping_region
 from catalog.serializers import VARIANT_FIELDS
 
 MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
@@ -30,6 +30,39 @@ class StaffVariantSerializer(serializers.ModelSerializer):
             return normalize_countries(value)
         except DjangoValidationError as e:
             raise serializers.ValidationError(e.messages)
+
+
+class StaffPlanSerializer(serializers.ModelSerializer):
+    label = serializers.ReadOnlyField()
+
+    class Meta:
+        model = RegionPlan
+        fields = ["id", "label", "data_mb", "validity_days", "price", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class StaffRegionSerializer(serializers.ModelSerializer):
+    plans = StaffPlanSerializer(many=True, read_only=True, source="live_plans")
+
+    class Meta:
+        model = Region
+        fields = ["id", "name", "countries", "pocket_wifi_daily_rate", "is_active", "created_at", "updated_at", "plans"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate_countries(self, value):
+        try:
+            return normalize_countries(value)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.messages)
+
+    def validate(self, attrs):
+        current = self.instance
+        active = attrs.get("is_active", current.is_active if current else True)
+        countries = attrs.get("countries", current.countries if current else [])
+        clash = overlapping_region(countries, current and current.pk) if active else None
+        if clash:
+            raise serializers.ValidationError({"countries": [f"{country_name(clash[0])} is already in region {clash[1].name}."]})
+        return attrs
 
 
 class StaffProductSerializer(serializers.ModelSerializer):
@@ -106,6 +139,42 @@ class StaffVariantViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(product=self.product())
+
+    def destroy(self, request, *args, **kwargs):
+        self.get_object().soft_delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StaffRegionViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsMarketingOrAdmin]
+    serializer_class = StaffRegionSerializer
+
+    def get_queryset(self):
+        qs = Region.objects.prefetch_related(Prefetch("plans", queryset=RegionPlan.objects.all(), to_attr="live_plans"))
+        if self.request.query_params.get("search"):
+            qs = qs.filter(name__icontains=self.request.query_params["search"])
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save().live_plans = []  # a new region has none; the prefetch above only runs on reads
+
+    def destroy(self, request, *args, **kwargs):
+        self.get_object().soft_delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StaffPlanViewSet(viewsets.ModelViewSet):
+    permission_classes = [IsMarketingOrAdmin]
+    serializer_class = StaffPlanSerializer
+
+    def region(self):
+        return get_object_or_404(Region.objects, pk=self.kwargs["region_pk"])
+
+    def get_queryset(self):
+        return RegionPlan.objects.filter(region=self.region())
+
+    def perform_create(self, serializer):
+        serializer.save(region=self.region())
 
     def destroy(self, request, *args, **kwargs):
         self.get_object().soft_delete()

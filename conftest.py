@@ -49,6 +49,30 @@ def marketing_user(db):
 
 
 @pytest.fixture
+def region_factory(db):
+    from decimal import Decimal
+
+    from catalog.models import Region
+
+    def make(**fields):
+        return Region.objects.create(**{"name": "Asia 1", "countries": ["JP"], "pocket_wifi_daily_rate": Decimal("100.00"), **fields})
+
+    return make
+
+
+@pytest.fixture
+def plan_factory(region_factory):
+    from decimal import Decimal
+
+    from catalog.models import RegionPlan
+
+    def make(region=None, **fields):
+        return RegionPlan.objects.create(region=region or region_factory(), **{"data_mb": 5120, "validity_days": 7, "price": Decimal("399.00"), **fields})
+
+    return make
+
+
+@pytest.fixture
 def variant_factory(db):
     from decimal import Decimal
 

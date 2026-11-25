@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog import cache
-from catalog.models import Product, ProductVariant, Region, country_name
+from catalog.models import Product, ProductVariant, VariantRegion, country_name
 from catalog.serializers import DestinationSerializer, PackGroupSerializer, PackSerializer, ProductSerializer
 
 
@@ -100,7 +100,7 @@ class DestinationsView(PublicMixin, APIView):
 
 
 def build_packs():
-    order = [r.value for r in Region]
+    order = [r.value for r in VariantRegion]
     packs = sorted(sellable_variants().filter(countries__len__gt=1), key=lambda v: (order.index(v.region), v.price))
     groups = {}
     for v in packs:
