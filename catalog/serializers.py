@@ -5,10 +5,20 @@ from catalog.models import Product, RegionPlan
 
 class PlanSerializer(serializers.ModelSerializer):
     label = serializers.ReadOnlyField()
+    validity_days = serializers.IntegerField()  # only Pocket WiFi plans have none
 
     class Meta:
         model = RegionPlan
         fields = ["id", "label", "data_mb", "validity_days", "price"]
+
+
+class WifiPlanSerializer(serializers.ModelSerializer):
+    label = serializers.ReadOnlyField()
+
+    class Meta:
+        model = RegionPlan
+        fields = ["id", "name", "label", "data_mb", "price"]
+        read_only_fields = fields  # output shape; marks fields required in the OpenAPI schema
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -17,12 +27,20 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = ["id", "product_name", "product_type", "product_thumbnail_img", "product_description"]
 
 
+class DestinationRegionSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+
+
 class DestinationSerializer(serializers.Serializer):
-    """A country and what it costs there. Regions stay internal."""
+    """A country, its price region and what it costs there."""
+
+    region = DestinationRegionSerializer()
 
     country_code = serializers.CharField()
     country_name = serializers.CharField()
     slug = serializers.CharField()
     from_price = serializers.DecimalField(max_digits=12, decimal_places=2)
-    pocket_wifi_daily_rate = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
     plans = PlanSerializer(many=True)
+    wifi_plans = WifiPlanSerializer(many=True)
+    is_popular = serializers.BooleanField()

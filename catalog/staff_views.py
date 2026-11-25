@@ -1,16 +1,20 @@
 import uuid
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema
 from PIL import Image, UnidentifiedImageError
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from accounts.permissions import IsMarketingOrAdmin
-from catalog.models import Product, Region, RegionPlan, country_name, normalize_countries, overlapping_region
+from catalog import signals
+from catalog.models import PopularCountry, Product, Region, RegionPlan, active_regions, country_name, normalize_countries, overlapping_region
 
 MAX_THUMBNAIL_BYTES = 2 * 1024 * 1024
 IMAGE_EXT = {"PNG": "png", "JPEG": "jpg", "WEBP": "webp", "GIF": "gif"}
@@ -21,8 +25,31 @@ class StaffPlanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RegionPlan
-        fields = ["id", "label", "data_mb", "validity_days", "price", "is_active", "created_at", "updated_at"]
+        fields = ["id", "label", "for_wifi", "name", "data_mb", "validity_days", "price", "is_active", "created_at", "updated_at"]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        current = self.instance
+        wifi = attrs.get("for_wifi", current.for_wifi if current else False)
+        name = attrs.get("name", current.name if current else "")
+        days = attrs.get("validity_days", current.validity_days if current else None)
+        if current and wifi != current.for_wifi:
+            raise serializers.ValidationError({"for_wifi": ["A plan can't change between SIM/eSIM and Pocket WiFi."]})
+        if not wifi:
+            if days is None:
+                raise serializers.ValidationError({"validity_days": ["This field is required."]})
+            return attrs | {"name": ""}
+        errors = {}
+        if days is not None:
+            errors["validity_days"] = ["Pocket WiFi plans are priced per day and have no validity."]
+        if not name:
+            errors["name"] = ["This field is required."]
+        # shortcut: name checked here only, add a partial unique constraint if staff edit plans concurrently
+        elif RegionPlan.objects.filter(region=self.context["view"].kwargs["region_pk"], for_wifi=True, name__iexact=name).exclude(pk=current and current.pk).exists():
+            errors["name"] = ["This region already has a Pocket WiFi plan with this name."]
+        if errors:
+            raise serializers.ValidationError(errors)
+        return attrs
 
 
 class StaffRegionSerializer(serializers.ModelSerializer):
@@ -30,7 +57,7 @@ class StaffRegionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Region
-        fields = ["id", "name", "countries", "pocket_wifi_daily_rate", "is_active", "created_at", "updated_at", "plans"]
+        fields = ["id", "name", "countries", "is_active", "created_at", "updated_at", "plans"]
         read_only_fields = ["id", "created_at", "updated_at"]
 
     def validate_countries(self, value):
@@ -128,3 +155,53 @@ class StaffPlanViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         self.get_object().soft_delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class StaffCountrySerializer(serializers.Serializer):
+    code = serializers.CharField()
+    name = serializers.CharField()
+    region = serializers.CharField()
+    is_popular = serializers.BooleanField()
+
+
+class PopularChangeSerializer(serializers.Serializer):
+    code = serializers.CharField(max_length=2)
+    is_popular = serializers.BooleanField()
+
+    def validate_code(self, value):
+        try:
+            return normalize_countries([value])[0]
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(e.messages)
+
+
+class PopularChangesSerializer(serializers.Serializer):
+    countries = PopularChangeSerializer(many=True, allow_empty=False)
+
+
+class StaffCountriesView(APIView):
+    """Countries on sale (those in an active region) and whether the store shows them as popular."""
+
+    permission_classes = [IsMarketingOrAdmin]
+
+    @extend_schema(responses=StaffCountrySerializer(many=True))
+    def get(self, request):
+        popular = set(PopularCountry.objects.values_list("country_code", flat=True))
+        regions = {}
+        for r in active_regions():
+            for code in r.countries:
+                regions.setdefault(code, r.name)
+        rows = [{"code": c, "name": country_name(c), "region": name, "is_popular": c in popular} for c, name in regions.items()]
+        return Response(sorted(rows, key=lambda r: r["name"]))
+
+    @extend_schema(request=PopularChangesSerializer, responses=StaffCountrySerializer(many=True))
+    def patch(self, request):
+        """Only the countries sent change, so ones hidden by an inactive region keep their flag."""
+        s = PopularChangesSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        wanted = {c["code"]: c["is_popular"] for c in s.validated_data["countries"]}
+        with transaction.atomic():
+            PopularCountry.objects.filter(country_code__in=[c for c, on in wanted.items() if not on]).delete()
+            PopularCountry.objects.bulk_create([PopularCountry(country_code=c) for c, on in wanted.items() if on], ignore_conflicts=True)
+            transaction.on_commit(signals.catalog_changed)  # once per save: bulk writes send no signals
+        return self.get(request)

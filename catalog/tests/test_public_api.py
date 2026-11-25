@@ -17,35 +17,48 @@ def dest(api):
     return api.get(f"{V1}/destinations").json()
 
 
-def test_destination_shape_and_no_region_leak(api, plan_factory, region_factory, products):
+def test_destination_shape(api, plan_factory, wifi_plan_factory, region_factory, products):
     r = region_factory(name="Secret Zone", countries=["JP", "KR"])
     p = plan_factory(region=r)
+    w = wifi_plan_factory(region=r, price=Decimal("350.00"))
+    cheap = wifi_plan_factory(region=r, name="Regular", data_mb=1024, price=Decimal("200.00"))
+    wifi_plan_factory(region=r, name="Off", price=Decimal("1.00"), is_active=False)
     res = api.get(f"{V1}/destinations")
     assert [d["country_code"] for d in res.json()] == ["JP", "KR"]
     assert res.json()[0] == {
-        "country_code": "JP", "country_name": "Japan", "slug": "japan", "from_price": "100.00", "pocket_wifi_daily_rate": "100.00",
+        "country_code": "JP", "country_name": "Japan", "slug": "japan", "from_price": "200.00", "is_popular": False,
+        "region": {"id": str(r.id), "name": "Secret Zone"},
         "plans": [{"id": str(p.id), "label": "5GB · 7 days", "data_mb": 5120, "validity_days": 7, "price": "399.00"}],
+        "wifi_plans": [
+            {"id": str(cheap.id), "name": "Regular", "label": "Regular · 1GB/day", "data_mb": 1024, "price": "200.00"},
+            {"id": str(w.id), "name": "Unlimited", "label": "Unlimited", "data_mb": None, "price": "350.00"},
+        ],
     }
-    assert "Secret Zone" not in res.content.decode() and str(r.id) not in res.content.decode()
 
 
-def test_no_wifi_product_hides_rate(api, plan_factory, product_factory):
-    plan_factory()
+def test_no_wifi_product_hides_wifi_plans(api, plan_factory, wifi_plan_factory, product_factory):
+    wifi_plan_factory(region=plan_factory().region)
     product_factory("sim")
     d = dest(api)[0]
-    assert d["pocket_wifi_daily_rate"] is None and d["from_price"] == "399.00"
+    assert d["wifi_plans"] == [] and d["from_price"] == "399.00"
 
 
-def test_no_sim_product_hides_plans(api, plan_factory, product_factory):
-    plan_factory()
+def test_no_sim_product_hides_plans(api, plan_factory, wifi_plan_factory, product_factory):
+    wifi_plan_factory(region=plan_factory().region)
     product_factory("pocket_wifi")
     product_factory("esim", is_active=False)
     d = dest(api)[0]
     assert d["plans"] == [] and d["from_price"] == "100.00"
 
 
+def test_region_with_only_wifi_plans_is_listed(api, wifi_plan_factory, products):
+    wifi_plan_factory()
+    d = dest(api)[0]
+    assert d["plans"] == [] and [p["label"] for p in d["wifi_plans"]] == ["Unlimited"] and d["from_price"] == "100.00"
+
+
 def test_country_with_nothing_to_sell_is_left_out(api, region_factory, products):
-    region_factory(pocket_wifi_daily_rate=None)
+    region_factory()
     assert dest(api) == []
 
 
@@ -82,15 +95,16 @@ def test_products_filter_type_and_search(api, products):
     assert api.get(f"{V1}/products/{products[0].id}").status_code == 200
 
 
-def test_price_edits_clear_cache_and_call_hook(api, plan_factory, products, django_capture_on_commit_callbacks, monkeypatch):
+def test_price_edits_clear_cache_and_call_hook(api, plan_factory, wifi_plan_factory, products, django_capture_on_commit_callbacks, monkeypatch):
     calls = []
     monkeypatch.setattr(rebuild, "trigger_rebuild", lambda: calls.append(1))
     plan = plan_factory()
+    wifi = wifi_plan_factory(region=plan.region)
     dest(api)  # warm cache
     with django_capture_on_commit_callbacks(execute=True):
-        plan.region.pocket_wifi_daily_rate = Decimal("80.00")
-        plan.region.save()
-    assert calls and dest(api)[0]["pocket_wifi_daily_rate"] == "80.00"
+        wifi.price = Decimal("80.00")
+        wifi.save()
+    assert calls and dest(api)[0]["wifi_plans"][0]["price"] == "80.00"
     with django_capture_on_commit_callbacks(execute=True):
         plan.price = Decimal("299.00")
         plan.save()

@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from catalog import cache
-from catalog.models import Product, ProductType, RegionPlan, active_regions, country_name
-from catalog.serializers import DestinationSerializer, PlanSerializer, ProductSerializer
+from catalog.models import PopularCountry, Product, ProductType, RegionPlan, active_regions, country_name
+from catalog.serializers import DestinationSerializer, PlanSerializer, ProductSerializer, WifiPlanSerializer
 
 
 class PublicMixin:
@@ -42,19 +42,23 @@ def build_destinations():
     # shortcut: every country carries its plans, split into a detail endpoint past ~500KB
     types = set(Product.objects.filter(is_active=True).values_list("product_type", flat=True))
     sells_wifi, sells_plans = ProductType.POCKET_WIFI in types, bool(types - {ProductType.POCKET_WIFI})
+    popular = set(PopularCountry.objects.values_list("country_code", flat=True))
     by_code = {}
     regions = active_regions().prefetch_related(Prefetch("plans", queryset=RegionPlan.objects.filter(is_active=True), to_attr="sold_plans"))
     for region in regions:
-        plans = region.sold_plans if sells_plans else []
-        rate = region.pocket_wifi_daily_rate if sells_wifi else None
-        prices = [p.price for p in plans] + ([rate] if rate else [])
-        if not prices:
+        sold = [p for p in region.sold_plans if (sells_wifi if p.for_wifi else sells_plans)]
+        if not sold:
             continue
-        priced = {"from_price": min(prices), "pocket_wifi_daily_rate": rate, "plans": PlanSerializer(plans, many=True).data}
+        priced = {
+            "region": {"id": region.id, "name": region.name},
+            "from_price": min(p.price for p in sold),
+            "plans": PlanSerializer([p for p in sold if not p.for_wifi], many=True).data,
+            "wifi_plans": WifiPlanSerializer([p for p in sold if p.for_wifi], many=True).data,
+        }
         for code in region.countries:
             name = country_name(code)
-            # oldest region wins, like region_for_country
-            by_code.setdefault(code, {"country_code": code, "country_name": name, "slug": slugify(name), **priced})
+            # oldest region wins
+            by_code.setdefault(code, {"country_code": code, "country_name": name, "slug": slugify(name), "is_popular": code in popular, **priced})
     return sorted(by_code.values(), key=lambda d: d["country_name"])
 
 

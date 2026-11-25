@@ -50,12 +50,10 @@ def marketing_user(db):
 
 @pytest.fixture
 def region_factory(db):
-    from decimal import Decimal
-
     from catalog.models import Region
 
     def make(**fields):
-        return Region.objects.create(**{"name": "Asia 1", "countries": ["JP"], "pocket_wifi_daily_rate": Decimal("100.00"), **fields})
+        return Region.objects.create(**{"name": "Asia 1", "countries": ["JP"], **fields})
 
     return make
 
@@ -73,6 +71,16 @@ def plan_factory(region_factory):
 
 
 @pytest.fixture
+def wifi_plan_factory(plan_factory):
+    from decimal import Decimal
+
+    def make(region=None, **fields):
+        return plan_factory(region, **{"for_wifi": True, "name": "Unlimited", "data_mb": None, "validity_days": None, "price": Decimal("100.00"), **fields})
+
+    return make
+
+
+@pytest.fixture
 def product_factory(db):
     from catalog.models import Product
 
@@ -83,25 +91,27 @@ def product_factory(db):
 
 
 @pytest.fixture
-def order_factory(product_factory, region_factory, plan_factory, user):
+def order_factory(product_factory, region_factory, plan_factory, wifi_plan_factory, user):
     """Japan order created through checkout (no Xendit call). kind: 'esim' (799) | 'wifi' (350/day)."""
     from datetime import timedelta
     from decimal import Decimal
 
     from django.utils import timezone
 
-    from catalog.models import region_for_country
+    from catalog.models import active_regions
     from orders.checkout import create_order
 
     def make(kind="esim", owner=None, client="web", start_in_days=3, nights=6):
-        region = region_for_country("JP") or region_factory(pocket_wifi_daily_rate=Decimal("350.00"))
+        region = active_regions().filter(countries__contains=["JP"]).first() or region_factory()
         line = {"country_code": "JP", "quantity": 1}
         if kind == "wifi":
             start = timezone.now() + timedelta(days=start_in_days)
-            line |= {"product_id": product_factory("pocket_wifi").id, "expected_unit_price": Decimal("350.00"), "start_at": start, "end_at": start + timedelta(days=nights)}
+            plan = wifi_plan_factory(region=region, price=Decimal("350.00"))
+            line |= {"product_id": product_factory("pocket_wifi").id, "start_at": start, "end_at": start + timedelta(days=nights)}
         else:
             plan = plan_factory(region=region, price=Decimal("799.00"))
-            line |= {"product_id": product_factory("esim").id, "region_plan_id": plan.id, "expected_unit_price": plan.price}
+            line |= {"product_id": product_factory("esim").id}
+        line |= {"region_plan_id": plan.id, "expected_unit_price": plan.price}
         return create_order(owner or user, client, [line]).order
 
     return make

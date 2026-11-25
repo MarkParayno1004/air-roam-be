@@ -5,7 +5,7 @@ from django.db import transaction
 
 from bookings.models import Booking
 from bookings.rules import check_dates
-from catalog.models import PricingUnit, Product, ProductType, RegionPlan, country_name, region_for_country
+from catalog.models import PricingUnit, Product, ProductType, RegionPlan, country_name
 from common.errors import DomainError
 from orders.models import Order, OrderLine
 
@@ -26,12 +26,10 @@ def _money(d):
 
 def _line_name(product, code, plan):
     """Country plus plan; the product's own name is stored and shown next to it."""
-    country = country_name(code)
-    if not product or not country:
+    if not product:
         return ""
-    if product.product_type == ProductType.POCKET_WIFI:
-        return country
-    return f"{country} {plan.label}" if plan else ""
+    place = country_name(code) if code else plan and plan.region.name  # no country = the whole region
+    return f"{place} {plan.label}" if place and plan else ""
 
 
 def _notice_name(product, line_name):
@@ -39,16 +37,15 @@ def _notice_name(product, line_name):
 
 
 def _current_price(product, code, plan):
-    """Plan price, or the country's own Pocket WiFi daily rate; None when it can't be sold."""
+    """Plan price (per day for Pocket WiFi); None when it can't be sold."""
     if product is None or not product.is_active or product.deleted_at:
         return None
-    if product.product_type == ProductType.POCKET_WIFI:
-        region = region_for_country(code)
-        return region and region.pocket_wifi_daily_rate
     if plan is None or not plan.is_active or plan.deleted_at:
         return None
+    if plan.for_wifi != (product.product_type == ProductType.POCKET_WIFI):
+        return None
     region = plan.region
-    if not region.is_active or region.deleted_at or code not in region.countries:
+    if not region.is_active or region.deleted_at or (code and code not in region.countries):
         return None
     return plan.price
 
@@ -60,11 +57,13 @@ def create_order(user, client, lines):
     plans = RegionPlan.all_objects.select_related("region").in_bulk([l["region_plan_id"] for l in lines if l.get("region_plan_id")])
     kept, updates, removed = [], [], []
     for l in lines:
-        product, code = products.get(l["product_id"]), l["country_code"].upper()
+        product, code = products.get(l["product_id"]), l.get("country_code", "").upper()
         wifi = product is not None and product.product_type == ProductType.POCKET_WIFI
-        if product and not wifi and not l.get("region_plan_id"):
+        if wifi and not code:
+            raise DomainError("country_required", "Choose a country.")
+        if product and not l.get("region_plan_id"):
             raise DomainError("plan_required", "Choose a plan.")
-        plan = None if wifi else plans.get(l.get("region_plan_id"))
+        plan = plans.get(l.get("region_plan_id"))
         name, price = _line_name(product, code, plan), _current_price(product, code, plan)
         if price is None:
             removed.append({"name": _notice_name(product, name)})
@@ -74,18 +73,15 @@ def create_order(user, client, lines):
     if not kept:
         raise DomainError("nothing_to_buy", "The plans in your cart are no longer available.", status=409)
 
-    # Every Pocket WiFi line pays the highest daily rate among the lines that are still for sale.
-    daily_rate = max((price for *_, price, days in kept if days), default=None)
     total_days = sum(days for *_, days in kept if days)
     delivery_fee = DELIVERY_FEE if 0 < total_days <= DELIVERY_FEE_MAX_DAYS else Decimal(0)
 
     order = Order.objects.create(user=user, client=client, delivery_fee=delivery_fee)
     total = delivery_fee
     for l, product, code, plan, name, price, days in kept:
-        unit_price = daily_rate if days else price
-        if unit_price != l["expected_unit_price"]:
-            updates.append({"name": _notice_name(product, name), "old_unit_price": _money(l["expected_unit_price"]), "new_unit_price": _money(unit_price)})
-        line_total = unit_price * l["quantity"] * (days or 1)
+        if price != l["expected_unit_price"]:
+            updates.append({"name": _notice_name(product, name), "old_unit_price": _money(l["expected_unit_price"]), "new_unit_price": _money(price)})
+        line_total = price * l["quantity"] * (days or 1)
         ol = OrderLine.objects.create(
             order=order,
             product=product,
@@ -94,9 +90,9 @@ def create_order(user, client, lines):
             variant_name_snapshot=name,
             product_type_snapshot=product.product_type,
             pricing_unit_snapshot=PricingUnit.PER_DAY if days else PricingUnit.PER_PLAN,
-            countries_snapshot=[code],
+            countries_snapshot=[code] if code else plan.region.countries,
             quantity=l["quantity"],
-            unit_price=unit_price,
+            unit_price=price,
             rental_days=days,
             line_total=line_total,
         )

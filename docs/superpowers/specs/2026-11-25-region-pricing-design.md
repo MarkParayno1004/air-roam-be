@@ -1,5 +1,7 @@
 # Region pricing — design
 
+> **Updated 2026-11-25:** the highest-price rule was removed for now (every Pocket WiFi item pays its own plan's price), the per-region daily rate became Pocket WiFi plans, and region names are shown in the Multi-Country Explorer. See `plans/2026-11-25-wifi-plans-and-store-redesign.md`.
+
 Covers `air-roam-be` and `air-roam-fe`. Status: approved 2026-11-25.
 
 ## Why

@@ -31,12 +31,14 @@ def fake_invoice(monkeypatch):
 
 
 class World:
-    """Asia 1 (JP, KR) 100/day with a 399 plan, NA (US) 50/day, EU (FR) 10/day; an eSIM and a Pocket WiFi product."""
+    """Asia 1 (JP, KR) 100/day with a 399 plan, NA (US) 50/day, EU (FR) 10/day (unlimited WiFi); an eSIM and a Pocket WiFi product."""
 
-    def __init__(self, region_factory, plan_factory, product_factory):
-        self.asia = region_factory(name="Asia 1", countries=["JP", "KR"], pocket_wifi_daily_rate=Decimal("100.00"))
-        self.na = region_factory(name="NA", countries=["US"], pocket_wifi_daily_rate=Decimal("50.00"))
-        self.eu = region_factory(name="EU", countries=["FR"], pocket_wifi_daily_rate=Decimal("10.00"))
+    def __init__(self, region_factory, plan_factory, wifi_plan_factory, product_factory):
+        self.asia = region_factory(name="Asia 1", countries=["JP", "KR"])
+        self.na = region_factory(name="NA", countries=["US"])
+        self.eu = region_factory(name="EU", countries=["FR"])
+        asia_wifi = wifi_plan_factory(region=self.asia)
+        self.wifi_plans = {"JP": asia_wifi, "KR": asia_wifi, "US": wifi_plan_factory(region=self.na, price=Decimal("50.00")), "FR": wifi_plan_factory(region=self.eu, price=Decimal("10.00"))}
         self.plan = plan_factory(region=self.asia)
         self.esim_product = product_factory("esim")
         self.wifi_product = product_factory("pocket_wifi")
@@ -45,12 +47,13 @@ class World:
         return {"product_id": str(self.esim_product.id), "country_code": code, "region_plan_id": str(self.plan.id), "quantity": 1, "expected_unit_price": expected, **kw}
 
     def wifi(self, code="JP", days=2, expected="100.00", **kw):
-        return {"product_id": str(self.wifi_product.id), "country_code": code, "quantity": 1, "expected_unit_price": expected, "start_at": day(5), "end_at": day(5 + days), **kw}
+        plan = self.wifi_plans[code.upper()]
+        return {"product_id": str(self.wifi_product.id), "country_code": code, "region_plan_id": str(plan.id), "quantity": 1, "expected_unit_price": expected, "start_at": day(5), "end_at": day(5 + days), **kw}
 
 
 @pytest.fixture
-def world(region_factory, plan_factory, product_factory):
-    return World(region_factory, plan_factory, product_factory)
+def world(region_factory, plan_factory, wifi_plan_factory, product_factory):
+    return World(region_factory, plan_factory, wifi_plan_factory, product_factory)
 
 
 def post(client, *lines):
@@ -67,17 +70,18 @@ def test_checkout_requires_login(api, world):
     assert post(api, world.esim()).status_code == 401
 
 
-@pytest.mark.parametrize("trips,rate,fee,total", [
-    ([("JP", 2), ("US", 2), ("FR", 2)], "100.00", "200.00", "800.00"),
-    ([("JP", 2), ("US", 2), ("FR", 3)], "100.00", "200.00", "900.00"),  # exactly 7 days still pays
-    ([("JP", 2), ("US", 2), ("FR", 4)], "100.00", "0.00", "800.00"),
-    ([("FR", 30), ("JP", 2)], "100.00", "0.00", "3200.00"),
-    ([("US", 2), ("FR", 2)], "50.00", "200.00", "400.00"),
+@pytest.mark.parametrize("trips,fee,total", [
+    ([("JP", 2), ("US", 2), ("FR", 2)], "200.00", "520.00"),
+    ([("JP", 2), ("US", 2), ("FR", 3)], "200.00", "530.00"),  # exactly 7 days still pays
+    ([("JP", 2), ("US", 2), ("FR", 4)], "0.00", "340.00"),
+    ([("FR", 30), ("JP", 2)], "0.00", "500.00"),
+    ([("US", 2), ("FR", 2)], "200.00", "320.00"),
 ])
-def test_highest_rate_and_delivery_fee(auth_api, world, trips, rate, fee, total):
-    body = ok(auth_api, *[world.wifi(code, days, expected=rate) for code, days in trips])
+def test_own_rates_and_delivery_fee(auth_api, world, trips, fee, total):
+    rates = {"JP": "100.00", "US": "50.00", "FR": "10.00"}
+    body = ok(auth_api, *[world.wifi(code, days, expected=rates[code]) for code, days in trips])
     order = body["order"]
-    assert [l["unit_price"] for l in order["lines"]] == [rate] * len(trips)
+    assert {l["countries_snapshot"][0]: l["unit_price"] for l in order["lines"]} == {code: rates[code] for code, _ in trips}
     assert order["delivery_fee"] == fee and order["total_amount"] == total
     assert body["price_updates"] == [] and body["removed_lines"] == []
 
@@ -89,8 +93,8 @@ def test_quantity_does_not_multiply_days(auth_api, world):
 
 def test_wifi_creates_a_pending_booking(auth_api, world):
     ln = ok(auth_api, world.wifi("jp", days=6))["order"]["lines"][0]
-    assert ln["rental_days"] == 6 and ln["line_total"] == "600.00" and ln["region_plan"] is None
-    assert ln["variant_name_snapshot"] == "Japan" and ln["product_name_snapshot"] == "Air Roam pocket_wifi" and ln["pricing_unit_snapshot"] == "per_day"
+    assert ln["rental_days"] == 6 and ln["line_total"] == "600.00" and ln["region_plan"] == str(world.wifi_plans["JP"].id)
+    assert ln["variant_name_snapshot"] == "Japan Unlimited" and ln["product_name_snapshot"] == "Air Roam pocket_wifi" and ln["pricing_unit_snapshot"] == "per_day"
     assert ln["booking"]["booking_status"] == "pending" and ln["booking"]["destination_country_codes"] == ["JP"]
 
 
@@ -109,19 +113,49 @@ def test_esim_plus_wifi(auth_api, world):
     assert {l["unit_price"] for l in order["lines"]} == {"399.00", "100.00"}
 
 
-def test_removed_line_does_not_set_the_rate_or_days(auth_api, world):
+def test_removed_line_does_not_count_its_days(auth_api, world):
     world.asia.is_active = False
     world.asia.save()
-    body = ok(auth_api, world.wifi("JP", 10), world.wifi("US", 2))
-    assert body["removed_lines"] == [{"name": "Air Roam pocket_wifi · Japan"}]
-    assert body["price_updates"] == [{"name": "Air Roam pocket_wifi · United States of America", "old_unit_price": "100.00", "new_unit_price": "50.00"}]
+    body = ok(auth_api, world.wifi("JP", 10), world.wifi("US", 2, expected="50.00"))
+    assert body["removed_lines"] == [{"name": "Air Roam pocket_wifi · Japan Unlimited"}]
+    assert body["price_updates"] == []
     assert (body["order"]["delivery_fee"], body["order"]["total_amount"]) == ("200.00", "300.00")
 
 
-def test_country_without_wifi_rate_removed(auth_api, world):
-    world.na.pocket_wifi_daily_rate = None
-    world.na.save()
-    assert ok(auth_api, world.wifi("JP"), world.wifi("US"))["removed_lines"] == [{"name": "Air Roam pocket_wifi · United States of America"}]
+@pytest.mark.parametrize("how", ["inactive", "deleted"])
+def test_unavailable_wifi_plan_removed(auth_api, world, how):
+    plan = world.wifi_plans["US"]
+    if how == "deleted":
+        plan.soft_delete()
+    else:
+        plan.is_active = False
+        plan.save()
+    assert ok(auth_api, world.wifi("JP"), world.wifi("US"))["removed_lines"] == [{"name": "Air Roam pocket_wifi · United States of America Unlimited"}]
+
+
+def test_wifi_lines_pay_their_own_plan_price(auth_api, world, wifi_plan_factory):
+    regular = wifi_plan_factory(region=world.asia, name="Regular", data_mb=1024, price=Decimal("200.00"))
+    world.wifi_plans["US"].price = Decimal("500.00")
+    world.wifi_plans["US"].save()
+    body = ok(auth_api, world.wifi("JP", expected="200.00", region_plan_id=str(regular.id)), world.wifi("US", expected="500.00"))
+    lines = {l["variant_name_snapshot"]: l for l in body["order"]["lines"]}
+    assert {n: l["unit_price"] for n, l in lines.items()} == {"Japan Regular · 1GB/day": "200.00", "United States of America Unlimited": "500.00"}
+    assert lines["Japan Regular · 1GB/day"]["region_plan"] == str(regular.id)
+    assert body["price_updates"] == [] and body["order"]["total_amount"] == "1600.00"  # 2 x 200 + 2 x 500 + 200 delivery
+
+
+def test_wifi_and_sim_plans_cannot_be_swapped(auth_api, world):
+    swapped = [world.wifi(region_plan_id=str(world.plan.id)), world.esim(region_plan_id=str(world.wifi_plans["JP"].id))]
+    for line in swapped:
+        r = post(auth_api, line)
+        assert r.status_code == 409 and r.json()["code"] == "nothing_to_buy"
+    body = ok(auth_api, world.esim(), *swapped)
+    assert len(body["removed_lines"]) == 2 and len(body["order"]["lines"]) == 1
+
+
+def test_wifi_plan_from_region_not_covering_country_removed(auth_api, world):
+    r = post(auth_api, world.wifi("US", region_plan_id=str(world.wifi_plans["FR"].id)))
+    assert r.status_code == 409 and r.json()["code"] == "nothing_to_buy"
 
 
 def test_plan_from_region_not_covering_country_removed(auth_api, world):
@@ -144,23 +178,19 @@ def test_unavailable_plan_region_or_product_removed(auth_api, world, target, how
 
 
 def test_unknown_product_plan_or_country_removed(auth_api, world):
-    body = ok(auth_api, world.esim(), world.esim(product_id=NOWHERE), world.esim(region_plan_id=NOWHERE), world.wifi("ZZ"))
+    body = ok(auth_api, world.esim(), world.esim(product_id=NOWHERE), world.esim(region_plan_id=NOWHERE), world.wifi(country_code="ZZ"))
     assert body["removed_lines"] == [{"name": ""}] * 3 and len(body["order"]["lines"]) == 1
 
 
-def test_esim_without_plan_rejected(auth_api, world):
+@pytest.mark.parametrize("kind", ["esim", "wifi"])
+def test_line_without_plan_rejected(auth_api, world, kind):
     for extra in ({"region_plan_id": None}, {}):
-        line = world.esim(**extra)
+        line = getattr(world, kind)(**extra)
         if not extra:
             del line["region_plan_id"]
         r = post(auth_api, line)
         assert r.status_code == 400 and r.json()["code"] == "plan_required"
     assert Order.all_objects.count() == 0
-
-
-def test_wifi_ignores_a_plan_id(auth_api, world):
-    ln = ok(auth_api, world.wifi(region_plan_id=str(world.plan.id)))["order"]["lines"][0]
-    assert ln["region_plan"] is None and ln["unit_price"] == "100.00"
 
 
 def test_changed_plan_price_is_reported(auth_api, world):
@@ -171,8 +201,11 @@ def test_changed_plan_price_is_reported(auth_api, world):
 
 def test_later_region_edit_keeps_order(auth_api, world):
     before = ok(auth_api, world.esim(), world.wifi())["order"]
-    world.asia.pocket_wifi_daily_rate, world.asia.countries = Decimal("999.00"), ["SG"]
+    world.asia.countries = ["SG"]
     world.asia.save()
+    wifi = world.wifi_plans["JP"]
+    wifi.price, wifi.name = Decimal("999.00"), "Renamed"
+    wifi.save()
     world.plan.price, world.plan.data_mb = Decimal("1.00"), None
     world.plan.save()
     assert auth_api.get(f"{URL}/{before['id']}").json() == before
@@ -222,3 +255,29 @@ def test_cancel_only_pending(auth_api, world):
     r = auth_api.post(f"{URL}/{oid}/cancel")
     assert r.status_code == 200 and r.json()["order_status"] == "cancelled"
     assert auth_api.post(f"{URL}/{oid}/cancel").json()["code"] == "invalid_transition"
+
+
+def whole_region(world):
+    world.asia.name = "Asia"
+    world.asia.save()
+    return {k: v for k, v in world.esim().items() if k != "country_code"}
+
+
+def test_plan_without_country_covers_the_whole_region(auth_api, world):
+    ln = ok(auth_api, whole_region(world))["order"]["lines"][0]
+    assert ln["variant_name_snapshot"] == "Asia 5GB · 7 days" and ln["countries_snapshot"] == ["JP", "KR"]
+    assert ln["unit_price"] == "399.00" and ln["booking"] is None
+
+
+def test_wifi_without_country_is_rejected(auth_api, world):
+    line = {k: v for k, v in world.wifi().items() if k != "country_code"}
+    r = post(auth_api, line)
+    assert r.status_code == 400 and r.json()["code"] == "country_required"
+
+
+def test_whole_region_line_removed_when_region_inactive(auth_api, world):
+    line = whole_region(world)
+    world.asia.is_active = False
+    world.asia.save()
+    body = ok(auth_api, line, world.wifi("US", expected="50.00"))
+    assert body["removed_lines"] == [{"name": "Air Roam esim · Asia 5GB · 7 days"}] and len(body["order"]["lines"]) == 1

@@ -712,6 +712,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/StaffBookingUpdateResponse'
           description: ''
+  /api/v1/staff/countries:
+    get:
+      operationId: v1_staff_countries_list
+      description: Countries on sale (those in an active region) and whether the store
+        shows them as popular.
+      tags:
+      - v1
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffCountry'
+          description: ''
+    patch:
+      operationId: v1_staff_countries_partial_update
+      description: Only the countries sent change, so ones hidden by an inactive region
+        keep their flag.
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPopularChanges'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedPopularChanges'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPopularChanges'
+      security:
+      - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffCountry'
+          description: ''
   /api/v1/staff/orders:
     get:
       operationId: v1_staff_orders_list
@@ -1671,7 +1717,6 @@ components:
           type: string
           format: date-time
       required:
-      - country_code
       - expected_unit_price
       - product_id
       - quantity
@@ -1713,8 +1758,10 @@ components:
       - csrfToken
     Destination:
       type: object
-      description: A country and what it costs there. Regions stay internal.
+      description: A country, its price region and what it costs there.
       properties:
+        region:
+          $ref: '#/components/schemas/DestinationRegion'
         country_code:
           type: string
         country_name:
@@ -1725,22 +1772,36 @@ components:
           type: string
           format: decimal
           pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-        pocket_wifi_daily_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
         plans:
           type: array
           items:
             $ref: '#/components/schemas/Plan'
+        wifi_plans:
+          type: array
+          items:
+            $ref: '#/components/schemas/WifiPlan'
+        is_popular:
+          type: boolean
       required:
       - country_code
       - country_name
       - from_price
+      - is_popular
       - plans
-      - pocket_wifi_daily_rate
+      - region
       - slug
+      - wifi_plans
+    DestinationRegion:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+      required:
+      - id
+      - name
     LoginInput:
       type: object
       properties:
@@ -2127,6 +2188,13 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StaffUser'
+    PatchedPopularChanges:
+      type: object
+      properties:
+        countries:
+          type: array
+          items:
+            $ref: '#/components/schemas/PopularChange'
     PatchedStaffBookingInput:
       type: object
       properties:
@@ -2153,6 +2221,11 @@ components:
         label:
           type: string
           readOnly: true
+        for_wifi:
+          type: boolean
+        name:
+          type: string
+          maxLength: 50
         data_mb:
           type: integer
           maximum: 2147483647
@@ -2162,6 +2235,7 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 1
+          nullable: true
         price:
           type: string
           format: decimal
@@ -2220,11 +2294,6 @@ components:
           items:
             type: string
             maxLength: 2
-        pocket_wifi_daily_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
         is_active:
           type: boolean
         created_at:
@@ -2364,8 +2433,6 @@ components:
           nullable: true
         validity_days:
           type: integer
-          maximum: 2147483647
-          minimum: 1
         price:
           type: string
           format: decimal
@@ -2375,6 +2442,17 @@ components:
       - label
       - price
       - validity_days
+    PopularChange:
+      type: object
+      properties:
+        code:
+          type: string
+          maxLength: 2
+        is_popular:
+          type: boolean
+      required:
+      - code
+      - is_popular
     PriceUpdate:
       type: object
       properties:
@@ -2641,6 +2719,22 @@ components:
       - start_at
       - updated_at
       - variant_name
+    StaffCountry:
+      type: object
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        region:
+          type: string
+        is_popular:
+          type: boolean
+      required:
+      - code
+      - is_popular
+      - name
+      - region
     StaffOrder:
       type: object
       properties:
@@ -2727,6 +2821,11 @@ components:
         label:
           type: string
           readOnly: true
+        for_wifi:
+          type: boolean
+        name:
+          type: string
+          maxLength: 50
         data_mb:
           type: integer
           maximum: 2147483647
@@ -2736,6 +2835,7 @@ components:
           type: integer
           maximum: 2147483647
           minimum: 1
+          nullable: true
         price:
           type: string
           format: decimal
@@ -2756,7 +2856,6 @@ components:
       - label
       - price
       - updated_at
-      - validity_days
     StaffProduct:
       type: object
       properties:
@@ -2808,11 +2907,6 @@ components:
           items:
             type: string
             maxLength: 2
-        pocket_wifi_daily_rate:
-          type: string
-          format: decimal
-          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
-          nullable: true
         is_active:
           type: boolean
         created_at:
@@ -2949,6 +3043,34 @@ components:
       - email
       - id
       - permissions
+    WifiPlan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        data_mb:
+          type: integer
+          readOnly: true
+          nullable: true
+        price:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+      required:
+      - data_mb
+      - id
+      - label
+      - name
+      - price
   securitySchemes:
     jwtAuth:
       type: http

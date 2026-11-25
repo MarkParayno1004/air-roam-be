@@ -44,7 +44,7 @@ class OrderLine(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="lines")
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="order_lines")
-    region_plan = models.ForeignKey(RegionPlan, on_delete=models.PROTECT, related_name="order_lines", null=True, blank=True)  # null = Pocket WiFi
+    region_plan = models.ForeignKey(RegionPlan, on_delete=models.PROTECT, related_name="order_lines", null=True, blank=True)  # null = Pocket WiFi bought before it had plans
     product_name_snapshot = models.CharField(max_length=200)
     variant_name_snapshot = models.CharField(max_length=200)
     product_type_snapshot = models.CharField(max_length=20)

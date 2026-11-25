@@ -57,8 +57,8 @@ class CheckoutResponseSerializer(serializers.Serializer):
 
 class CheckoutLineSerializer(serializers.Serializer):
     product_id = serializers.UUIDField()
-    country_code = serializers.CharField(min_length=2, max_length=2)
-    region_plan_id = serializers.UUIDField(required=False, allow_null=True)  # SIM/eSIM only
+    country_code = serializers.CharField(min_length=2, max_length=2, required=False)  # SIM/eSIM only: omitted = whole region
+    region_plan_id = serializers.UUIDField(required=False, allow_null=True)  # missing = plan_required
     quantity = serializers.IntegerField(min_value=1, max_value=10)
     expected_unit_price = serializers.DecimalField(max_digits=12, decimal_places=2)
     start_at = serializers.DateTimeField(required=False)

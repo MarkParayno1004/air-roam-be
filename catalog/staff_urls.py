@@ -9,6 +9,7 @@ router.register("regions", staff_views.StaffRegionViewSet, basename="staff-regio
 
 plans = staff_views.StaffPlanViewSet
 urlpatterns = router.urls + [
+    path("countries", staff_views.StaffCountriesView.as_view()),
     path("regions/<uuid:region_pk>/plans", plans.as_view({"get": "list", "post": "create"})),
     path(
         "regions/<uuid:region_pk>/plans/<uuid:pk>",
